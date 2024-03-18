@@ -1,0 +1,27 @@
+.footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background-color: #A58355;
+    padding: 15px 0;
+}
+
+span {
+    letter-spacing: 0.12rem;
+    font-family: "Inter Tight";
+    margin-right: 60px;
+    margin-left: 50px;
+}
+
+svg {
+    margin-left: 30px;
+    position: absolute;
+}
+
+.git {
+    background-color: #A58355;
+    border: 0;
+    position: absolute;
+    right: 80px;
+    cursor: pointer;
+}
