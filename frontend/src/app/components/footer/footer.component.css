@@ -6,15 +6,21 @@
     padding: 15px 0;
 }
 
+button{
+    background-color: #A58355;
+    border: 0;
+    cursor: pointer;
+}
+
 span {
     letter-spacing: 0.12rem;
     font-family: "Inter Tight";
     margin-right: 60px;
-    margin-left: 50px;
+    margin-left: 55px;
 }
 
 svg {
-    margin-left: 30px;
+    margin-left: 35px;
     position: absolute;
 }
 
@@ -22,6 +28,6 @@ svg {
     background-color: #A58355;
     border: 0;
     position: absolute;
-    right: 80px;
+    right: 85px;
     cursor: pointer;
 }
