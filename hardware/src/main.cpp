@@ -6,10 +6,16 @@
 #include "addons/TokenHelper.h" //Provide the token generation process info.
 #include "addons/RTDBHelper.h"//Provide the RTDB payload printing info and other helper functions.
 
-#define WIFI_SSID ""
-#define WIFI_PASSWORD ""
+#define WIFI_SSID "TI-01 0380"
+#define WIFI_PASSWORD "b#0642R2"
 #define TEST_DIR "test/"
 #define BASE_DIR "base/"
+
+String doorStatePath= BASE_DIR + String("doorState");
+String doorOpenTimePath= BASE_DIR + String("doorOpenTime");
+String humidityPath= BASE_DIR + String("humidity");
+String temperaturePath= BASE_DIR + String("temperature");
+String posPath= BASE_DIR + String("pos");
 
 //Firebase project API Key
 #define API_KEY "AIzaSyDuCIrTT_CQjwBTzwdqT8exzWlqmqrs2ao"
@@ -66,7 +72,7 @@ void conectarFirebase(void)
   config.database_url = DATABASE_URL;
   if (Firebase.signUp(&config, &auth, "", ""))
   {
-    Serial.println("ok");
+    Serial.println("Conectado ao Firebase");
     signupOK = true;
   }
   else
@@ -74,13 +80,11 @@ void conectarFirebase(void)
     Serial.printf("%s\n", config.signer.signupError.message.c_str());
   }
 
+    /* Assign the callback function for the long running token generation task */
+  config.token_status_callback = tokenStatusCallback; //see addons/TokenHelper.h
+
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
-}
-
-void tokenStatusCallback(bool status)
-{
-  Serial.printf("Token Status: %s\n", status ? "true" : "false");
 }
 
 void sendDataToFirebaseFloat(float value, String path)
@@ -140,6 +144,7 @@ void sendDataToFirebaseString(String value, String path)
   }
 }
 
+
 int getDataFromFirebaseInt(String path)
 {
   if (Firebase.ready() && signupOK)
@@ -180,7 +185,7 @@ float getDataFromFirebaseFloat(String path)
   return -1;
 }
 
-string getDataFromFirebaseString(String path)
+String getDataFromFirebaseString(String path)
 {
   if (Firebase.ready() && signupOK)
   {
@@ -204,15 +209,9 @@ void setup()
 {
   Serial.begin(115200);
 
-  #define doorStatePath BASE_DIR + "doorState";
-  #define doorOpenTimePath BASE_DIR + "doorOpenTime";
-  #define humidityPath BASE_DIR + "humidity";
-  #define temperaturePath BASE_DIR + "temperature";
-  #define posPath BASE_DIR + "pos";
-
-  initWiFi(void);
-  conectarFirebase(void);
-
+  initWiFi();
+  conectarFirebase();
+  
   pinMode(DOOR_SENSOR_PIN, INPUT_PULLUP);
   pinMode(BUZZER_PIN, OUTPUT);
   pinMode(LED_PIN, OUTPUT);
@@ -227,7 +226,16 @@ void setup()
 
 void loop()
 {
+
+  //TESTE DB:
+  float test = 0.01 + random(0,100);
+  sendDataToFirebaseFloat(test, TEST_DIR + String("float"));
+  Serial.println("Valor de teste enviado: " + String(test));
+  delay(300);
+  
+  
   doorState = digitalRead(DOOR_SENSOR_PIN);
+  sendDataToFirebaseInt(doorState, doorStatePath);
 
   if (doorState == HIGH)
   {
@@ -248,7 +256,6 @@ void loop()
     doorOpenTime = 0;
     digitalWrite(LED_PIN, LOW);
     digitalWrite(BUZZER_PIN, LOW);
-    sendDataToFirebaseInt(doorState, doorStatePath);
   }
 
   float humidity = dhtSensor.readHumidity();
@@ -257,7 +264,6 @@ void loop()
   if (isnan(humidity) || isnan(temp)) {
     Serial.println("Failed to read from DHT sensor!");
     sendDataToFirebaseString("Failed to read from DHT sensor!", humidityPath);
-    return;
   }
 
   Serial.print("Temp. = ");
