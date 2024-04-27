@@ -1,6 +1,5 @@
 #include "firebase.h"
 
-
 //Define Firebase Data object
 FirebaseData fbdo;
 
