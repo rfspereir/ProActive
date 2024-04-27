@@ -1,6 +1,11 @@
 
-#include "firebase.h"
-#include "tasks.h"
+#include <DHT.h>
+#include <Adafruit_Sensor.h>
+#include <ESP32Servo.h>
+#include <WiFi.h>
+#include <Firebase_ESP_Client.h>
+#include "addons/TokenHelper.h" //Provide the token generation process info.
+#include "addons/RTDBHelper.h"//Provide the RTDB payload printing info and other helper functions.
 
 #define WIFI_SSID "TI-01 0380"
 #define WIFI_PASSWORD "b#0642R2"
@@ -35,13 +40,293 @@ int doorState;
 unsigned long doorOpenTime = 0;
 unsigned long currentTime = 0;
 
+EventGroupHandle_t events;
+#define EV_1SEG (1 << 0) //Define o bit do evento
+
+//Tarefas Firebase e conexão com a internet:
+
+//Define Firebase Data object
+FirebaseData fbdo;
+FirebaseAuth auth;
+FirebaseConfig config;
+unsigned long sendDataPrevMillis = 0;
+int count = 0;
+bool signupOK = false;
+
+void initWiFi()
+{
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.println("------Conexao WI-FI------");
+  Serial.print("Conectando-se na rede: ");
+  Serial.println(WIFI_SSID);
+  Serial.println("Aguarde");
+    while (WiFi.status() != WL_CONNECTED){
+      Serial.print(".");
+      delay(300);
+    }
+  Serial.println();
+  Serial.print("Conectado com o IP: ");
+  Serial.println(WiFi.localIP());
+  Serial.println();
+}
+
+void conectarFirebase()
+{
+  config.api_key = API_KEY;
+  config.database_url = DATABASE_URL;
+  if (Firebase.signUp(&config, &auth, "", ""))
+  {
+    Serial.println("Conectado ao Firebase");
+    signupOK = true;
+  }
+  else
+  {
+    Serial.printf("%s\n", config.signer.signupError.message.c_str());
+  }
+
+    /* Assign the callback function for the long running token generation task */
+  config.token_status_callback = tokenStatusCallback; //see addons/TokenHelper.h
+
+  Firebase.begin(&config, &auth);
+  Firebase.reconnectWiFi(true);
+}
+
+void sendDataToFirebaseFloat(float value, String path)
+{
+  if (Firebase.ready() && signupOK && (millis() - sendDataPrevMillis > 15000 || sendDataPrevMillis == 0))
+  {
+    sendDataPrevMillis = millis();
+    if (Firebase.RTDB.setFloat(&fbdo, path, value))
+    {
+      Serial.println("PASSED");
+      Serial.println("PATH: " + fbdo.dataPath());
+      Serial.println("TYPE: " + fbdo.dataType());
+    }
+    else
+    {
+      Serial.println("FAILED");
+      Serial.println("REASON: " + fbdo.errorReason());
+    }
+  }
+}
+
+void sendDataToFirebaseInt(int value, String path)
+{
+  if (Firebase.ready() && signupOK && (millis() - sendDataPrevMillis > 15000 || sendDataPrevMillis == 0))
+  {
+    sendDataPrevMillis = millis();
+    if (Firebase.RTDB.setInt(&fbdo, path, value))
+    {
+      Serial.println("PASSED");
+      Serial.println("PATH: " + fbdo.dataPath());
+      Serial.println("TYPE: " + fbdo.dataType());
+    }
+    else
+    {
+      Serial.println("FAILED");
+      Serial.println("REASON: " + fbdo.errorReason());
+    }
+  }
+}
+
+void sendDataToFirebaseString(String value, String path)
+{
+  if (Firebase.ready() && signupOK && (millis() - sendDataPrevMillis > 15000 || sendDataPrevMillis == 0))
+  {
+    sendDataPrevMillis = millis();
+    if (Firebase.RTDB.setString(&fbdo, path, value))
+    {
+      Serial.println("PASSED");
+      Serial.println("PATH: " + fbdo.dataPath());
+      Serial.println("TYPE: " + fbdo.dataType());
+    }
+    else
+    {
+      Serial.println("FAILED");
+      Serial.println("REASON: " + fbdo.errorReason());
+    }
+  }
+}
+
+
+int getDataFromFirebaseInt(String path)
+{
+  if (Firebase.ready() && signupOK)
+  {
+    if (Firebase.RTDB.getInt(&fbdo, path))
+    {
+      Serial.println("PASSED");
+      Serial.println("PATH: " + fbdo.dataPath());
+      Serial.println("TYPE: " + fbdo.dataType());
+      return fbdo.intData();
+    }
+    else
+    {
+      Serial.println("FAILED");
+      Serial.println("REASON: " + fbdo.errorReason());
+    }
+  }
+  return -1;
+}
+
+float getDataFromFirebaseFloat(String path)
+{
+  if (Firebase.ready() && signupOK)
+  {
+    if (Firebase.RTDB.getFloat(&fbdo, path))
+    {
+      Serial.println("PASSED");
+      Serial.println("PATH: " + fbdo.dataPath());
+      Serial.println("TYPE: " + fbdo.dataType());
+      return fbdo.floatData();
+    }
+    else
+    {
+      Serial.println("FAILED");
+      Serial.println("REASON: " + fbdo.errorReason());
+    }
+  }
+  return -1;
+}
+
+String getDataFromFirebaseString(String path)
+{
+  if (Firebase.ready() && signupOK)
+  {
+    if (Firebase.RTDB.getString(&fbdo, path))
+    {
+      Serial.println("PASSED");
+      Serial.println("PATH: " + fbdo.dataPath());
+      Serial.println("TYPE: " + fbdo.dataType());
+      return fbdo.stringData();
+    }
+    else
+    {
+      Serial.println("FAILED");
+      Serial.println("REASON: " + fbdo.errorReason());
+    }
+  }
+  return "";
+}
+
+//-----------------------------------------------------------------------------------------------------
+//Tarefas rotina:
+
+void readDoorSensor()
+{
+  doorState = digitalRead(DOOR_SENSOR_PIN);
+  //TODO:(ALTERAR A FORMA DE COMUNICAÇÃO COM O FIREBASE)
+  //sendDataToFirebaseInt(doorState, doorStatePath);
+
+  if (doorState == HIGH)
+  {
+    digitalWrite(LED_PIN, HIGH);
+    currentTime = millis();
+    //TODO:(ALTERAR A FORMA DE COMUNICAÇÃO COM O FIREBASE) 
+    //sendDataToFirebaseInt(doorState, doorStatePath);
+    if (doorOpenTime == 0)
+    {
+      doorOpenTime = currentTime;
+    }
+    else if (currentTime - doorOpenTime >= 60000)
+    {
+      digitalWrite(BUZZER_PIN, HIGH);
+    }
+  }
+  else
+  {
+    doorOpenTime = 0;
+    digitalWrite(LED_PIN, LOW);
+    digitalWrite(BUZZER_PIN, LOW);
+  }
+}
+{
+  doorState = digitalRead(DOOR_SENSOR_PIN);
+  //TODO:(ALTERAR A FORMA DE COMUNICAÇÃO COM O FIREBASE)
+  //sendDataToFirebaseInt(doorState, doorStatePath);
+
+  if (doorState == HIGH)
+  {
+    digitalWrite(LED_PIN, HIGH);
+    currentTime = millis();
+    //TODO:(ALTERAR A FORMA DE COMUNICAÇÃO COM O FIREBASE)
+    //sendDataToFirebaseInt(doorState, doorStatePath);
+    if (doorOpenTime == 0)
+    {
+      doorOpenTime = currentTime;
+    }
+    else if (currentTime - doorOpenTime >= 60000)
+    {
+      digitalWrite(BUZZER_PIN, HIGH);
+    }
+  }
+  else
+  {
+    doorOpenTime = 0;
+    digitalWrite(LED_PIN, LOW);
+    digitalWrite(BUZZER_PIN, LOW);
+  }
+}
+
+void readTemperatureHumidity()
+{
+  float humidity = dhtSensor.readHumidity();
+  float temp = dhtSensor.readTemperature();
+
+  if (isnan(humidity) || isnan(temp))
+  {
+    Serial.println("Failed to read from DHT sensor!");
+    //TODO:(ALTERAR A FORMA DE COMUNICAÇÃO COM O FIREBASE)
+    //sendDataToFirebaseString("Failed to read from DHT sensor!", humidityPath);
+  }
+
+  Serial.print("Temp. = ");
+  Serial.println(temp);
+  //TODO:(ALTERAR A FORMA DE COMUNICAÇÃO COM O FIREBASE)
+  //sendDataToFirebaseFloat(temp, temperaturePath);
+
+  if (temp > 30)
+  {
+    ledcWrite(0, 255);
+  }
+  else
+  {
+    ledcWrite(0, 125);
+  }
+}
+
+void servoControl()
+{
+  if (Serial.available() > 0)
+  {
+    char command = Serial.read();
+    bool isChanged = false; // Flag para verificar mudança de posição
+
+    if (command == 'u' && pos < 180)
+    {
+      pos += 10;
+      isChanged = true;
+    }
+    else if (command == 'd' && pos > 0)
+    {
+      pos -= 10;
+      isChanged = true;
+    }
+
+    if (isChanged)
+    {
+      servoMotor.write(pos);
+      Serial.println(pos);
+      //TODO:(ALTERAR A FORMA DE COMUNICAÇÃO COM O FIREBASE)
+      //sendDataToFirebaseInt(pos, posPath);
+    }
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
-
-  initWiFi(WIFI_SSID, WIFI_PASSWORD);
-  conectarFirebase(API_KEY, DATABASE_URL);
-  
+  //Inicializar pinos:
   pinMode(DOOR_SENSOR_PIN, INPUT_PULLUP);
   pinMode(BUZZER_PIN, OUTPUT);
   pinMode(LED_PIN, OUTPUT);
@@ -52,11 +337,29 @@ void setup()
   // Configuração do PWM
   ledcSetup(0, 5000, 8);
   ledcAttachPin(MOTOR_PIN, 0);
+
+  //Conexão com a internet
+  xTaskCreate(
+    initWiFi(WIFI_SSID, WIFI_PASSWORD),
+    "initWiFi",
+    10000,
+    NULL,
+    1,
+    NULL);
+    
+  //Conexão com o Firebase
+  xTaskCreate(
+    conectarFirebase(API_KEY, DATABASE_URL),
+    "conectarFirebase",
+    10000,
+    NULL,
+    1,
+    NULL);
 }
 
 void loop()
 {
-
+  //TODO: AJUSTAR AS ENTRADAS DAS FUNÇÕES:
   readDoorSensor();
   readTemperatureHumidity();
   readServoMotor();
