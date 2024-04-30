@@ -4,10 +4,10 @@
 #include "addons/RTDBHelper.h"//Provide the RTDB payload printing info and other helper functions.
 
 //Varáveis Wifi
-// #define WIFI_SSID "TI-01 0380"
-// #define WIFI_PASSWORD "b#0642R2"
-#define WIFI_SSID "504"
-#define WIFI_PASSWORD "LS457190"
+#define WIFI_SSID "TI-01 0380"
+#define WIFI_PASSWORD "b#0642R2"
+// #define WIFI_SSID "504"
+// #define WIFI_PASSWORD "LS457190"
 
 //Firebase RTDB
 #define API_KEY "AIzaSyDuCIrTT_CQjwBTzwdqT8exzWlqmqrs2ao" //Firebase project API Key
@@ -23,16 +23,14 @@ bool signupOK = false;
 
 //Variáveis controle porta
 const int DOOR_SENSOR_PIN = 32;
-const int BUZZER_PIN = 19;
-const int LED_PIN = 2;
-int doorState = 0;
-unsigned long doorOpenTime = 0;
-unsigned long currentTime = 0;
+const int BUZZER_PIN = 2;
+const int LED_PIN = 18;
 
 //Variáveis controle de eventos
 EventGroupHandle_t xEventGroupKey;
-TaskHandle_t taskHandle_porta, taskHandle_verificaPorta;
-QueueHandle_t queue_porta = xQueueCreate(2, sizeof(int));
+TaskHandle_t taskHandlePorta, taskHandleVerificaPorta;
+QueueHandle_t queuePortaStatus = xQueueCreate(1, sizeof(int));
+QueueHandle_t queuePortaTimer = xQueueCreate(1, sizeof(unsigned long));
 #define EV_START (1 << 0)
 #define EV_WIFI (1 << 1) //Define o bit do evento Conectado ao WI-FI
 #define EV_FIRE (1 << 2) //Define o bit do evento Conectado ao Firebase
@@ -95,7 +93,7 @@ void conectarFirebase(void *pvParameters)
         Firebase.begin(&config, &auth);
         Firebase.reconnectWiFi(true);
         Serial.println("Conectado ao Firebase");
-        Serial.println("Ready...");
+        Serial.println("Ready!");
         xEventGroupSetBits(xEventGroupKey, EV_FIRE);//Configura o BIT (EV_2SEG) em 1
         vTaskDelete(NULL);
       }
@@ -109,17 +107,21 @@ void conectarFirebase(void *pvParameters)
 
 void monitoraPorta(void *pvParameters)
 {
+  int doorState = 0;
+  unsigned long doorOpenTime = 0;
   for(;;){
     doorState = digitalRead(DOOR_SENSOR_PIN);
-    //xQueueSend(queue_porta, &doorState, 0);
-    
+    xQueueSend(queuePortaStatus, &doorState, 0);
     if(doorState == HIGH){
-        xEventGroupSetBits(xEventGroupKey, EV_STATUS_PORTA);
-        vTaskResume(taskHandle_porta);
+      EventBits_t xEventGroupValue = xEventGroupGetBits(xEventGroupKey);
+      if((xEventGroupValue & EV_STATUS_PORTA)==0){
+        doorOpenTime = millis();
+        xQueueSend(queuePortaTimer, &doorOpenTime, 0);
+       } 
+      xEventGroupSetBits(xEventGroupKey, EV_STATUS_PORTA);
       }
     else if(doorState == LOW){
       xEventGroupClearBits(xEventGroupKey, EV_STATUS_PORTA);
-      vTaskResume(taskHandle_porta);
   }
   vTaskDelay(pdMS_TO_TICKS(200));
 }
@@ -127,22 +129,25 @@ void monitoraPorta(void *pvParameters)
 
 void AcionaBuzzer(void *pvParameters)
 {
+  unsigned long currentTime = 0;
+  unsigned long doorOpenTime = 0;
   for(;;){
     EventBits_t xEventGroupValue = xEventGroupWaitBits(xEventGroupKey, EV_STATUS_PORTA, pdFALSE, pdTRUE, 0);
-    //int status_porta=xQueueReceive(queue_porta, &doorState, 0);
     if (xEventGroupValue & EV_STATUS_PORTA){
+      xQueueReceive(queuePortaTimer,&doorOpenTime, 0);
+      digitalWrite(LED_PIN, HIGH);
+      currentTime = millis();
+      if(currentTime - doorOpenTime >= 60000){
         digitalWrite(BUZZER_PIN, HIGH);
-        digitalWrite(LED_PIN, HIGH);
-        xEventGroupSetBits(xEventGroupKey, EV_BUZZER);
+         xEventGroupSetBits(xEventGroupKey, EV_BUZZER);
+      }
     }
       else{
         digitalWrite(BUZZER_PIN, LOW);
         digitalWrite(LED_PIN, LOW);
         xEventGroupClearBits(xEventGroupKey, EV_BUZZER);
     }
-    vTaskDelay(pdMS_TO_TICKS(300));
-    vTaskSuspend(NULL);
-    
+    vTaskDelay(pdMS_TO_TICKS(300));    
   }
 }
 /*
@@ -186,7 +191,7 @@ void setup()
 
     delay(2000);
     // Criação da tarefa AcionaBuzzer
-  if (xTaskCreatePinnedToCore(AcionaBuzzer, "AcionaBuzzer", 5000, NULL, 2, &taskHandle_porta,1) != pdPASS) {
+  if (xTaskCreatePinnedToCore(AcionaBuzzer, "AcionaBuzzer", 5000, NULL, 2, &taskHandlePorta,1) != pdPASS) {
     Serial.println("Falha ao criar a tarefa AcionaBuzzer");}
       // Criação da tarefa VerificaPortaAberta
   if(xTaskCreatePinnedToCore(monitoraPorta, "monitoraPorta", 5000, NULL, 1, NULL,0) != pdPASS) {
