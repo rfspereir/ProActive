@@ -2,6 +2,10 @@
 #include <Firebase_ESP_Client.h>
 #include "addons/TokenHelper.h" //Provide the token generation process info.
 #include "addons/RTDBHelper.h"//Provide the RTDB payload printing info and other helper functions.
+#include <DHT.h>
+#include <Adafruit_Sensor.h>
+#include <driver/ledc.h>
+
 
 //Varáveis Wifi
 #define WIFI_SSID "TI-01 0380"
@@ -26,27 +30,49 @@ const int DOOR_SENSOR_PIN = 32;
 const int BUZZER_PIN = 2;
 const int LED_PIN = 18;
 
+//Variáveis DHT
+#define DHTTYPE DHT22
+const int DHT_PIN = 15;
+DHT dhtSensor(DHT_PIN, DHTTYPE);
+
+//Variáveis PWM(Ventilador)
+const int MOTOR_PIN = 25;
+const int LEDC_CHANNEL = 0;
+const int LEDC_FREQUENCY = 5000;  // Frequência em Hz
+const int LEDC_RESOLUTION = LEDC_TIMER_13_BIT;  // Resolução de 13 bits
+
+
+
 //Variáveis controle de eventos
 EventGroupHandle_t xEventGroupKey;
 TaskHandle_t taskHandlePorta, taskHandleVerificaPorta;
 QueueHandle_t queuePortaStatus = xQueueCreate(1, sizeof(int));
 QueueHandle_t queuePortaTimer = xQueueCreate(1, sizeof(unsigned long));
+QueueHandle_t queueTemperatura = xQueueCreate(1, sizeof(float));
+QueueHandle_t queueUmidade = xQueueCreate(1, sizeof(float));
 #define EV_START (1 << 0)
 #define EV_WIFI (1 << 1) //Define o bit do evento Conectado ao WI-FI
 #define EV_FIRE (1 << 2) //Define o bit do evento Conectado ao Firebase
 
 #define EV_STATUS_PORTA (1 << 10) //Define o bit do evento porta aberta
 #define EV_BUZZER (1 << 11) //Define o bit do evento buzzer ativado
-#define EV_T2 (1 << 5) 
-
 
 void InicializaEsp(void *pvParameters)
 {
   for(;;){
     Serial.println("Inicializando ESP32");
+
+    dhtSensor.begin();//Inicializa o sensor DHT
+
+    ledcSetup(LEDC_CHANNEL, LEDC_FREQUENCY, LEDC_RESOLUTION);//Inicializa o PWM
+
     pinMode(DOOR_SENSOR_PIN, INPUT_PULLUP);
     pinMode(BUZZER_PIN, OUTPUT);
     pinMode(LED_PIN, OUTPUT);
+    pinMode(MOTOR_PIN, OUTPUT);
+
+    ledcAttachPin(MOTOR_PIN, LEDC_CHANNEL);
+
     vTaskDelay(pdMS_TO_TICKS(500));
     xEventGroupSetBits(xEventGroupKey, EV_START);
     vTaskDelete(NULL);
@@ -127,6 +153,24 @@ void monitoraPorta(void *pvParameters)
 }
 }
 
+void monitoraTemperaura(void *pvParameters)
+{
+  for(;;){
+    float humidity = dhtSensor.readHumidity();
+    float temp = dhtSensor.readTemperature();
+
+    if (isnan(humidity) || isnan(temp)) {
+      Serial.println("Failed to read from DHT sensor!");
+    return;
+  }
+  else{
+    xQueueSend(queueTemperatura, &temp, 0);
+    xQueueSend(queueUmidade, &humidity, 0);
+  }
+    vTaskDelay(pdMS_TO_TICKS(2000));
+  }
+}
+
 void AcionaBuzzer(void *pvParameters)
 {
   unsigned long currentTime = 0;
@@ -150,23 +194,26 @@ void AcionaBuzzer(void *pvParameters)
     vTaskDelay(pdMS_TO_TICKS(300));    
   }
 }
-/*
-void tarefaTeste2(void *pvParameters)
+
+void controlaVentilador(void *pvParameters)
 {
-  const EventBits_t xBitsToWaitFor = (EV_FIRE|EV_WIFI|EV_T1);
-  EventBits_t xEventGroupValue;
   for(;;){
-    xEventGroupValue = xEventGroupWaitBits(xEventGroupKey, xBitsToWaitFor, pdFALSE, pdFALSE, portMAX_DELAY);
-    if (xEventGroupValue == xBitsToWaitFor){
-      Serial.println("Tarefa 2");
-      xEventGroupSetBits(xEventGroupKey, EV_T2);
-      xEventGroupClearBits(xEventGroupKey, EV_T1);
-      vTaskDelay(pdMS_TO_TICKS(300));
+    float temp = 0;
+    int items_waiting = uxQueueMessagesWaiting(queueTemperatura);
+    if(items_waiting > 0) {
+    // Ler o próximo item sem removê-lo
+      if(xQueuePeek(queueTemperatura, &temp, 0) == pdTRUE) {
+        if(temp > 30){
+          ledcWrite(0, 4096);
+        }
+        else{
+          ledcWrite(0, 1024);
+        }
       }
     }
-  }
-*/
-
+    vTaskDelay(pdMS_TO_TICKS(3000));
+  }    
+}
 
 void setup()
 {
@@ -174,7 +221,6 @@ void setup()
   delay(200);
 
   xEventGroupKey = xEventGroupCreate();// Cria Event Group
-
   if(xEventGroupKey == NULL){
     Serial.printf("\n\rFalha em criar a Event Group xEventGroupKey");}
 
@@ -196,6 +242,9 @@ void setup()
       // Criação da tarefa VerificaPortaAberta
   if(xTaskCreatePinnedToCore(monitoraPorta, "monitoraPorta", 5000, NULL, 1, NULL,0) != pdPASS) {
     Serial.println("Falha ao criar a tarefa monitoraPorta");}
+    // Criação da tarefa monitoraTemperaura
+  if(xTaskCreatePinnedToCore(monitoraTemperaura, "monitoraTemperaura", 5000, NULL, 1, NULL,0) != pdPASS) {
+    Serial.println("Falha ao criar a tarefa monitoraTemperaura");}
 
 }
 
