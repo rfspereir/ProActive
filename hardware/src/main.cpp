@@ -245,6 +245,9 @@ void setup()
     // Criação da tarefa monitoraTemperaura
   if(xTaskCreatePinnedToCore(monitoraTemperaura, "monitoraTemperaura", 5000, NULL, 1, NULL,0) != pdPASS) {
     Serial.println("Falha ao criar a tarefa monitoraTemperaura");}
+    // Criação da tarefa controlaVentilador
+  if(xTaskCreatePinnedToCore(controlaVentilador, "controlaVentilador", 5000, NULL, 1, NULL,0) != pdPASS) {
+    Serial.println("Falha ao criar a tarefa controlaVentilador");}
 
 }
 
