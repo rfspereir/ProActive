@@ -5,6 +5,7 @@
 #include <DHT.h>
 #include <Adafruit_Sensor.h>
 #include <driver/ledc.h>
+#include <ESP32Servo.h>
 
 
 //Varáveis Wifi
@@ -41,7 +42,10 @@ const int LEDC_CHANNEL = 0;
 const int LEDC_FREQUENCY = 5000;  // Frequência em Hz
 const int LEDC_RESOLUTION = LEDC_TIMER_13_BIT;  // Resolução de 13 bits
 
-
+//Variáveis Servo
+const int SERVO_PIN = 26;
+Servo servoMotor;
+int pos = 90;
 
 //Variáveis controle de eventos
 EventGroupHandle_t xEventGroupKey;
@@ -72,6 +76,9 @@ void InicializaEsp(void *pvParameters)
     pinMode(MOTOR_PIN, OUTPUT);
 
     ledcAttachPin(MOTOR_PIN, LEDC_CHANNEL);
+
+    servoMotor.attach(SERVO_PIN);
+    servoMotor.write(pos);
 
     vTaskDelay(pdMS_TO_TICKS(500));
     xEventGroupSetBits(xEventGroupKey, EV_START);
@@ -215,6 +222,31 @@ void controlaVentilador(void *pvParameters)
   }    
 }
 
+void controlaServo(void *pvParameters)
+{
+  for(;;){
+    int pos = 0;
+    if (Serial.available() > 0) {
+      char command = Serial.read();
+      bool isChanged = false; // Flag para verificar mudança de posição
+
+      if (command == 'u' && pos < 180) {
+        pos += 10;
+        isChanged = true;
+      } else if (command == 'd' && pos > 0) {
+        pos -= 10;
+        isChanged = true;
+      }
+
+      if (isChanged) {
+        servoMotor.write(pos);
+        Serial.println(pos);
+      }
+    }
+    vTaskDelay(pdMS_TO_TICKS(300));
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -237,18 +269,20 @@ void setup()
 
     delay(2000);
     // Criação da tarefa AcionaBuzzer
-  if (xTaskCreatePinnedToCore(AcionaBuzzer, "AcionaBuzzer", 5000, NULL, 2, &taskHandlePorta,1) != pdPASS) {
+  if (xTaskCreatePinnedToCore(AcionaBuzzer, "AcionaBuzzer", 5000, NULL, 1, &taskHandlePorta,1) != pdPASS) {
     Serial.println("Falha ao criar a tarefa AcionaBuzzer");}
       // Criação da tarefa VerificaPortaAberta
-  if(xTaskCreatePinnedToCore(monitoraPorta, "monitoraPorta", 5000, NULL, 1, NULL,0) != pdPASS) {
+  if(xTaskCreatePinnedToCore(monitoraPorta, "monitoraPorta", 5000, NULL, 2, NULL,0) != pdPASS) {
     Serial.println("Falha ao criar a tarefa monitoraPorta");}
     // Criação da tarefa monitoraTemperaura
-  if(xTaskCreatePinnedToCore(monitoraTemperaura, "monitoraTemperaura", 5000, NULL, 1, NULL,0) != pdPASS) {
+  if(xTaskCreatePinnedToCore(monitoraTemperaura, "monitoraTemperaura", 5000, NULL, 2, NULL,0) != pdPASS) {
     Serial.println("Falha ao criar a tarefa monitoraTemperaura");}
     // Criação da tarefa controlaVentilador
   if(xTaskCreatePinnedToCore(controlaVentilador, "controlaVentilador", 5000, NULL, 1, NULL,0) != pdPASS) {
     Serial.println("Falha ao criar a tarefa controlaVentilador");}
-
+    // Criação da tarefa controlaServo
+  if(xTaskCreatePinnedToCore(controlaServo, "controlaServo", 5000, NULL, 1, NULL,0) != pdPASS) {
+    Serial.println("Falha ao criar a tarefa controlaServo");}
 }
 
 void loop()
