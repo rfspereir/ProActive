@@ -1,30 +1,52 @@
 import { Component } from '@angular/core';
 import { HeaderComponent } from '../../components/header/header.component';
 import { FooterComponent } from '../../components/footer/footer.component';
+import { Database, ref, set, onValue } from '@angular/fire/database';
+import { inject } from '@angular/core';
 
 @Component({
   selector: 'app-diagram',
   standalone: true,
   imports: [HeaderComponent, FooterComponent],
   templateUrl: './diagram.component.html',
-  styleUrl: './diagram.component.css'
+  styleUrls: ['./diagram.component.css']
 })
 export class DiagramComponent {
   temp: number = 0;
+  temp_ambient: number = 0;
+  private database: Database = inject(Database);
 
-  constructor() { }
+  constructor() {
+    this.loadData();
+  }
 
   increment(): void {
     this.temp++;
+    this.saveData();
   }
 
   decrement(): void {
     this.temp--;
+    this.saveData();
   }
 
-  salvar(): void {
-    // Aqui você pode adicionar lógica para salvar o número
-    console.log('Número salvo:', this.temp);
+  saveData(): void {
+    const dbRef = ref(this.database, 'temperatura');
+    set(dbRef, this.temp)
+      .then(() => console.log('Dados salvos com sucesso:', this.temp))
+      .catch(error => console.error('Erro ao salvar dados:', error));
   }
 
+  loadData(): void {
+    const dbRef = ref(this.database, '/base/temperature');
+    onValue(dbRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data !== null) {
+        this.temp_ambient = data;
+        console.log('Dados carregados com sucesso:', this.temp_ambient);
+      }
+    }, {
+      onlyOnce: true // Para carregar dados apenas uma vez
+    });
+  }
 }

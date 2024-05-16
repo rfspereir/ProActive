@@ -1,4 +1,5 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
+import { Database } from '@angular/fire/database';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 
@@ -11,4 +12,5 @@ import { RouterOutlet } from '@angular/router';
 })
 export class AppComponent {
   title = 'GeladeiraInteligente';
+  private database = inject(Database);
 }

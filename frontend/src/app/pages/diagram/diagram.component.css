@@ -20,6 +20,14 @@ h3 {
     }
 }
 
+/* Estilo para o valor da temperatura */
+.box p {
+    margin: 0;
+    color: #0b0b0b;
+    font-size: 36px; /* Define o tamanho da fonte */
+    text-align: center; /* Centraliza o texto */
+  }
+
 button {
     margin: 10px;
     padding: 7px;
