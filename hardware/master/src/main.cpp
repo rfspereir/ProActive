@@ -6,14 +6,20 @@
 #include <Adafruit_Sensor.h>
 #include <driver/ledc.h>
 #include <ESP32Servo.h>
+#include "time.h"
 
 // Varáveis Wifi
-#define WIFI_SSID "INTELBRAS"
-#define WIFI_PASSWORD "EF191624"
+//#define WIFI_SSID "INTELBRAS"
+//#define WIFI_PASSWORD "EF191624"
 //#define WIFI_SSID "TI-01 0380"
 //#define WIFI_PASSWORD "b#0642R2"
-// #define WIFI_SSID "504"
-// #define WIFI_PASSWORD "LS457190"
+#define WIFI_SSID "504"
+#define WIFI_PASSWORD "LS457190"
+
+// Define o servidor NTP
+const char* ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = -10800; // Defina o fuso horário (em segundos) -3 horas para Brasília
+const int daylightOffset_sec = 0; // Horário de verão
 
 // Firebase RTDB
 #define API_KEY "AIzaSyDuCIrTT_CQjwBTzwdqT8exzWlqmqrs2ao"                   // Firebase project API Key
@@ -60,6 +66,7 @@ QueueHandle_t queuePortaStatus = xQueueCreate(1, sizeof(int));
 QueueHandle_t queuePortaTimer = xQueueCreate(1, sizeof(unsigned long));
 QueueHandle_t queueTemperatura = xQueueCreate(1, sizeof(float));
 QueueHandle_t queueUmidade = xQueueCreate(1, sizeof(float));
+
 #define EV_START (1 << 0)
 #define EV_WIFI (1 << 1) // Define o bit do evento Conectado ao WI-FI
 #define EV_FIRE (1 << 2) // Define o bit do evento Conectado ao Firebase
@@ -107,13 +114,21 @@ void initWiFi(void *pvParameters)
       while (WiFi.status() != WL_CONNECTED)
       {
         Serial.print(".");
-        vTaskDelay(100);
+        vTaskDelay(pdMS_TO_TICKS(100));
       }
       if (WiFi.status() == WL_CONNECTED)
       {
         Serial.println();
         Serial.print("Conectado com o IP: ");
         Serial.println(WiFi.localIP());
+        configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+        struct tm timeinfo;
+        if(!getLocalTime(&timeinfo)){
+          Serial.println("Failed to obtain time");
+          }else{
+            Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
+          }     
+          
         xEventGroupSetBits(xEventGroupKey, EV_WIFI);
         vTaskDelay(500);
         vTaskDelete(NULL);
@@ -121,6 +136,28 @@ void initWiFi(void *pvParameters)
     }
   }
 }
+
+void monitorWiFi(void *pvParameters) {
+    for (;;) {
+       EventBits_t xEventGroupValue = xEventGroupGetBits(xEventGroupKey);
+        if (WiFi.status() != WL_CONNECTED) {
+            Serial.println("WiFi desconectado. Tentando reconectar...");
+             // Conexão com a internet
+
+            if ((xEventGroupValue & EV_WIFI)) { 
+              if (xTaskCreatePinnedToCore(initWiFi, "initWiFi", 5000, NULL, 14, NULL, 1) == pdPASS)
+              {
+                xEventGroupClearBits(xEventGroupKey, EV_WIFI); // Configura o BIT (EV_WIFI) em 0
+              }
+              else{
+                Serial.println("Falha ao criar a tarefa initWiFi");
+              }
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(60000)); // Check every 60 seconds
+    }
+}
+
 
 void conectarFirebase(void *pvParameters)
 {
@@ -152,6 +189,27 @@ void conectarFirebase(void *pvParameters)
     }
   }
 }
+
+void monitorFirebase(void *pvParameters) {
+    for (;;) {
+        EventBits_t xEventGroupValue = xEventGroupGetBits(xEventGroupKey);
+        if (!signupOK || !Firebase.ready()) {
+            Serial.println("Firebase desconectado. Tentando reconectar...");
+            
+            // Verifica se o evento EV_FIRE está desativado
+            if ((xEventGroupValue & EV_FIRE)) {     
+              if (xTaskCreatePinnedToCore(conectarFirebase, "conectarFirebase", 5000, NULL, 14, NULL, 1) == pdPASS) {
+                xEventGroupClearBits(xEventGroupKey, EV_FIRE); // Configura o BIT (EV_2SEG) em 0
+              } 
+                else { 
+                  Serial.println("Falha ao criar a tarefa conectarFirebase");
+                }
+          }
+        }
+        vTaskDelay(pdMS_TO_TICKS(90000)); // Check every 60 seconds
+    }
+}
+
 
 void monitoraPorta(void *pvParameters)
 {
@@ -297,6 +355,53 @@ void controlaServo(void *pvParameters) {
   }
 }
 
+void receberDadosFirebase(void *pvParameters)
+{
+  for (;;)
+  {
+    if (signupOK)
+    {
+      if (Firebase.get(fbdo, "/"))
+      {
+        Serial.println("Recebendo dados do Firebase");
+        Serial.println(fbdo.payload());
+      }
+      else
+      {
+        Serial.println("Falha ao receber dados do Firebase");
+        Serial.println(fbdo.errorReason());
+      }
+    }
+    vTaskDelay(pdMS_TO_TICKS(5000));
+  }
+}
+
+void enviarDadosFirebase(void *pvParameters)
+{
+  for (;;)
+  {
+    if (signupOK)
+    {
+      if (millis() - sendDataPrevMillis > 5000)
+      {
+        sendDataPrevMillis = millis();
+        count++;
+        if (Firebase.set(fbdo, "/count", count))
+        {
+          Serial.println("Enviando dados para o Firebase");
+          Serial.println(count);
+        }
+        else
+        {
+          Serial.println("Falha ao enviar dados para o Firebase");
+          Serial.println(fbdo.errorReason());
+        }
+      }
+    }
+    vTaskDelay(pdMS_TO_TICKS(5000));
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -324,8 +429,12 @@ void setup()
   {
     Serial.println("Falha ao criar a tarefa conectarFirebase");
   }
-
   delay(2000);
+  //Tarefa monitoraWiFi
+  if (xTaskCreatePinnedToCore(monitorWiFi, "monitorWiFi", 5000, NULL, 14, NULL, 1) != pdPASS)
+  {
+    Serial.println("Falha ao criar a tarefa monitorWiFi");
+  }
   // Criação da tarefa AcionaBuzzer
   if (xTaskCreatePinnedToCore(AcionaBuzzer, "AcionaBuzzer", 5000, NULL, 1, &taskHandlePorta, 1) != pdPASS)
   {
@@ -351,6 +460,16 @@ void setup()
   {
     Serial.println("Falha ao criar a tarefa controlaServo");
   }
+
+  if (xTaskCreatePinnedToCore(receberDadosFirebase, "receberDadosFirebase", 5000, NULL, 1, NULL, 0) != pdPASS)
+  {
+    Serial.println("Falha ao criar a tarefa receberDadosFirebase");
+  }
+
+  if (xTaskCreatePinnedToCore(enviarDadosFirebase, "enviarDadosFirebase", 5000, NULL, 1, NULL, 0) != pdPASS)
+  {
+    Serial.println("Falha ao criar a tarefa enviarDadosFirebase");
+  }  
 }
 
 void loop()
