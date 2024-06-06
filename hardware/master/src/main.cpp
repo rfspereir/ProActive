@@ -59,10 +59,6 @@ const int LEDC_CHANNEL = 0;
 const int LEDC_FREQUENCY = 1000;               // Frequência em Hz
 const int LEDC_RESOLUTION = LEDC_TIMER_13_BIT; // Resolução de 13 bits
 
-// #define PWM_CHANNEL 0  // Canal PWM a ser usado (0-15)
-// #define PWM_FREQ 1000  // Frequência PWM (em Hz)
-// #define PWM_RESOLUTION 8 // Resolução PWM (8 bits = 256 níveis)
-
 // Variáveis Servo
 const int SERVO_PIN = 26;
 Servo servoMotor;
@@ -76,6 +72,7 @@ QueueHandle_t queuePortaStatus = xQueueCreate(1, sizeof(int));
 QueueHandle_t queuePortaTimer = xQueueCreate(1, sizeof(unsigned long));
 QueueHandle_t queueTemperatura = xQueueCreate(1, sizeof(float));
 QueueHandle_t queueUmidade = xQueueCreate(1, sizeof(float));
+QueueHandle_t queueServoControl = xQueueCreate(2, sizeof(int));
 
 #define EV_START (1 << 0)
 #define EV_WIFI (1 << 1) // Define o bit do evento Conectado ao WI-FI
@@ -133,12 +130,16 @@ void initWiFi(void *pvParameters)
         Serial.println(WiFi.localIP());
         configTime(gmtOffset_sec, daylightOffset_sec, ntpServer1, ntpServer2, ntpServer3);
         struct tm timeinfo;
-        const int timeout = 10; // Tempo limite em segundos
+        const int timeout = 30;
         int attempts = 0;
+        Serial.print("Sincronizando a hora atual...");
+
         while (!getLocalTime(&timeinfo) && attempts < timeout) {
-            Serial.println("Falha ao obter a hora. Tentando novamente...");
+            
+            Serial.print(".");
+       
             attempts++;
-            delay(1000); // Aguarde 1 segundo antes de tentar novamente
+            vTaskDelay(pdMS_TO_TICKS(100)); // Aguarde 1 segundo antes de tentar novamente
         }
 
         if (attempts < timeout) {
@@ -149,7 +150,7 @@ void initWiFi(void *pvParameters)
         }
 
         xEventGroupSetBits(xEventGroupKey, EV_WIFI);
-        vTaskDelay(500);
+        vTaskDelay(pdMS_TO_TICKS(500));
         vTaskDelete(NULL);
       }
     }
@@ -173,7 +174,7 @@ void monitorWiFi(void *pvParameters) {
               }
             }
         }
-        vTaskDelay(pdMS_TO_TICKS(60000)); // Check every 60 seconds
+        vTaskDelay(pdMS_TO_TICKS(6000)); // Check every 60 seconds
     }
 }
 
@@ -225,7 +226,7 @@ void monitorFirebase(void *pvParameters) {
                 }
           }
         }
-        vTaskDelay(pdMS_TO_TICKS(90000)); // Check every 60 seconds
+        vTaskDelay(pdMS_TO_TICKS(9000)); // Check every 60 seconds
     }
 }
 
@@ -271,14 +272,13 @@ void monitoraTemperaura(void *pvParameters)
     else
     {
       Serial.print("Temperatura: ");
-      Serial.println(temp);
+      Serial.print(temp);
       Serial.print(" °C\t Umidade: ");
-      Serial.print("Umidade: ");
       Serial.println(humidity);
       xQueueSend(queueTemperatura, &temp, 0);
       xQueueSend(queueUmidade, &humidity, 0);
     }
-    vTaskDelay(pdMS_TO_TICKS(30000));
+    vTaskDelay(pdMS_TO_TICKS(3000));
   }
 }
 
@@ -318,26 +318,30 @@ void controlaVentilador(void *pvParameters)
   {
     float temp = 0;
     int items_waiting = uxQueueMessagesWaiting(queueTemperatura);
-    if (items_waiting > 0)
-    {
-      // Ler o próximo item sem removê-lo
-      if (xQueuePeek(queueTemperatura, &temp, 0) == pdTRUE)
+     if (items_waiting > 0)
+     {
+      if (xQueuePeek(queueTemperatura, &temp, portMAX_DELAY) != pdTRUE)
       {
-        printf("Temperatura lida servo: %.2f\n", temp);
-        if (temp > 30)
-        {
-          ledcWrite(0, 4096);
-        }
-        else if (temp < 20)
-        {
-          ledcWrite(0, 512);
-        }
-        else {
-          ledcWrite(0, map(temp, 20, 30, 1024, 3072));
-        }
+        Serial.println("Falha ao ler a fila de temperatura");
       }
+    else{
+    if (temp > 30)
+    {
+      ledcWrite(0, 4096);
     }
-    vTaskDelay(pdMS_TO_TICKS(30000));
+    else if (temp < 20)
+    {
+      ledcWrite(0, 512);
+    }
+    else {
+      float valor = map(temp, 20, 30, 1024, 3072);
+      ledcWrite(0, valor);
+      printf("Temperatura: %.2f, Valor: %.2f\n", temp, valor);
+    }
+    }
+     }
+    
+    vTaskDelay(pdMS_TO_TICKS(50));
   }
 }
 
@@ -366,7 +370,7 @@ void controlaServo(void *pvParameters) {
         Serial.print("Pos=");
         Serial.println(pos);
         pos = 90;
-        vTaskDelay(500);
+        vTaskDelay(pdMS_TO_TICKS(500));
         servoMotor.write(pos);
         Serial.println("Parou");
       }
@@ -554,7 +558,7 @@ void setup()
   //   Serial.println("Falha ao criar a tarefa receberDadosFirebase");
   // }
 
-  if (xTaskCreate(enviarDadosFirebase, "enviarDadosFirebase", 5000, NULL, 1, NULL) != pdPASS)
+  if (xTaskCreate(enviarDadosFirebase, "enviarDadosFirebase", 8192, NULL, 1, NULL) != pdPASS)
   {
     Serial.println("Falha ao criar a tarefa enviarDadosFirebase");
   }  
