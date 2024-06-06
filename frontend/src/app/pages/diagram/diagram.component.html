@@ -1,9 +1,9 @@
-  <app-header></app-header>
+<app-header></app-header>
 <main class="fadein">
 
     <div class="container">
         <div class="box">
-            <h3>Temperatura:</h3>
+            <h3>Temperatura na Geladeira:</h3>
             <div>
                 <button (click)="decrement()">-</button>
                 <span>{{temp}} C</span>
@@ -11,20 +11,29 @@
             </div>
         </div>
         <div class="box">
-            <h3>Ingredientes:</h3>
-            <div>
-<!--            <li>Feijão</li>
-                <li>Arroz</li>
-                <li>Batata</li>
-                <li>Alface</li> -->
-            </div>
+            <h3>Umidade na Geladeira::</h3>
+            <p>{{umidade}}</p>
         </div>
         <div class="box">
             <h3>Temperatura ambiente:</h3>
             <p>{{temp_ambient}}</p>
         </div>
     </div>
+
+    <div class="container">
+        <div class="camera">
+            <div class="btn">
+                <button (click)="subir()">Subir Câmera</button>
+                <button (click)="descer()">Abaixar Câmera</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="grafico" *ngIf="isBrowser">
+            <div echarts [options]="Option"></div>
+        </div>
+    </div>
   
 </main>
 <app-footer></app-footer>
-  

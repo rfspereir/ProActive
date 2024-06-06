@@ -14,19 +14,37 @@ h3 {
     border-radius: 15px;
     margin: 10px;
     padding: 80px;
-    margin-top: 15%;
+    margin-top: 10%;
     div{
         text-align: center;
     }
+    p {
+        margin: 0;
+        color: #0b0b0b;
+        font-size: 36px; /* Define o tamanho da fonte */
+        text-align: center; /* Centraliza o texto */
+      }
 }
 
-/* Estilo para o valor da temperatura */
-.box p {
-    margin: 0;
-    color: #0b0b0b;
-    font-size: 36px; /* Define o tamanho da fonte */
-    text-align: center; /* Centraliza o texto */
-  }
+.camera {
+    flex: 1;
+    background-color: antiquewhite;
+    border-radius: 15px;
+    margin: 10px;
+    padding: 80px;
+
+    .btn{
+        margin-left: 40%;
+    }
+}
+
+.grafico {
+    flex: 1;
+    background-color: antiquewhite;
+    border-radius: 15px;
+    margin: 10px;
+    padding: 80px;
+}
 
 button {
     margin: 10px;
@@ -43,6 +61,7 @@ button {
 .fadein {
     opacity: 0;
     animation: fadeIn 2s ease-in forwards;
+    margin-bottom: 10%;
 }
   
 @keyframes fadeIn {
