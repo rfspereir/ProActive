@@ -7,6 +7,7 @@
 #include <driver/ledc.h>
 #include <ESP32Servo.h>
 #include "time.h"
+#include <ESP32Time.h>
 
 // Varáveis Wifi
 //#define WIFI_SSID "INTELBRAS"
@@ -17,9 +18,17 @@
 #define WIFI_PASSWORD "LS457190"
 
 // Define o servidor NTP
-const char* ntpServer = "pool.ntp.org";
+const char* ntpServer1 = "a.st1.ntp.br";
+const char* ntpServer2 = "time.nist.gov";
+const char* ntpServer3 = "time.google.com";
 const long gmtOffset_sec = -10800; // Defina o fuso horário (em segundos) -3 horas para Brasília
 const int daylightOffset_sec = 0; // Horário de verão
+
+ESP32Time rtc(0);
+
+// Estrutura para manter o tempo
+struct tm timeinfo;
+unsigned long previousMillis = 0;
 
 // Firebase RTDB
 #define API_KEY "AIzaSyDuCIrTT_CQjwBTzwdqT8exzWlqmqrs2ao"                   // Firebase project API Key
@@ -61,6 +70,7 @@ int pos = 90;
 
 // Variáveis controle de eventos
 EventGroupHandle_t xEventGroupKey;
+SemaphoreHandle_t xSemaphore;
 TaskHandle_t taskHandlePorta, taskHandleVerificaPorta;
 QueueHandle_t queuePortaStatus = xQueueCreate(1, sizeof(int));
 QueueHandle_t queuePortaTimer = xQueueCreate(1, sizeof(unsigned long));
@@ -121,14 +131,23 @@ void initWiFi(void *pvParameters)
         Serial.println();
         Serial.print("Conectado com o IP: ");
         Serial.println(WiFi.localIP());
-        configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+        configTime(gmtOffset_sec, daylightOffset_sec, ntpServer1, ntpServer2, ntpServer3);
         struct tm timeinfo;
-        if(!getLocalTime(&timeinfo)){
-          Serial.println("Failed to obtain time");
-          }else{
-            Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
-          }     
-          
+        const int timeout = 10; // Tempo limite em segundos
+        int attempts = 0;
+        while (!getLocalTime(&timeinfo) && attempts < timeout) {
+            Serial.println("Falha ao obter a hora. Tentando novamente...");
+            attempts++;
+            delay(1000); // Aguarde 1 segundo antes de tentar novamente
+        }
+
+        if (attempts < timeout) {
+            Serial.println(&timeinfo, "Data e Hora iniciais: %Y-%m-%d %H:%M:%S");
+            rtc.setTimeStruct(timeinfo);
+        } else {
+            Serial.println("Falha ao obter a hora NTP após várias tentativas.");
+        }
+
         xEventGroupSetBits(xEventGroupKey, EV_WIFI);
         vTaskDelay(500);
         vTaskDelete(NULL);
@@ -259,7 +278,7 @@ void monitoraTemperaura(void *pvParameters)
       xQueueSend(queueTemperatura, &temp, 0);
       xQueueSend(queueUmidade, &humidity, 0);
     }
-    vTaskDelay(pdMS_TO_TICKS(2000));
+    vTaskDelay(pdMS_TO_TICKS(30000));
   }
 }
 
@@ -304,20 +323,21 @@ void controlaVentilador(void *pvParameters)
       // Ler o próximo item sem removê-lo
       if (xQueuePeek(queueTemperatura, &temp, 0) == pdTRUE)
       {
+        printf("Temperatura lida servo: %.2f\n", temp);
         if (temp > 30)
         {
           ledcWrite(0, 4096);
         }
         else if (temp < 20)
         {
-          ledcWrite(0, 1024);
+          ledcWrite(0, 512);
         }
         else {
-          ledcWrite(0, map(temp, 20, 30, 1024, 4096));
+          ledcWrite(0, map(temp, 20, 30, 1024, 3072));
         }
       }
     }
-    vTaskDelay(pdMS_TO_TICKS(3000));
+    vTaskDelay(pdMS_TO_TICKS(30000));
   }
 }
 
@@ -359,48 +379,109 @@ void receberDadosFirebase(void *pvParameters)
 {
   for (;;)
   {
-    if (signupOK)
-    {
-      if (Firebase.get(fbdo, "/"))
-      {
-        Serial.println("Recebendo dados do Firebase");
-        Serial.println(fbdo.payload());
-      }
-      else
-      {
-        Serial.println("Falha ao receber dados do Firebase");
-        Serial.println(fbdo.errorReason());
-      }
-    }
     vTaskDelay(pdMS_TO_TICKS(5000));
   }
 }
 
 void enviarDadosFirebase(void *pvParameters)
 {
-  for (;;)
-  {
-    if (signupOK)
+    float temp = 0;
+    float humidity = 0;
+    for (;;)
     {
-      if (millis() - sendDataPrevMillis > 5000)
-      {
-        sendDataPrevMillis = millis();
-        count++;
-        if (Firebase.set(fbdo, "/count", count))
+        if (signupOK)
         {
-          Serial.println("Enviando dados para o Firebase");
-          Serial.println(count);
+            // Tentar pegar o semáforo
+            if (xSemaphoreTake(xSemaphore, pdMS_TO_TICKS(100)) == pdTRUE)
+            {
+                // Coletar dados das filas
+                if (xQueueReceive(queueTemperatura, &temp, 0) && xQueueReceive(queueUmidade, &humidity, 0))
+                {
+                    // Obter o timestamp atual
+                    struct tm timeinfo=rtc.getTimeStruct();
+
+                    // Estruturar os dados em um formato JSON
+                    char timestamp[20];
+                    strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", &timeinfo);
+
+                    FirebaseJson json;
+                    json.set("timestamp", timestamp);
+                    json.set("temperature", temp);
+                    json.set("humidity", humidity);
+
+                    // Enviar os dados para o Firebase
+                    String path = "/sensorData/" + String(timestamp);
+
+                    if (Firebase.RTDB.setJSON(&fbdo, path, &json))
+                    {
+                        Serial.println("Dados enviados para o Firebase");
+                        Serial.printf("Timestamp: %s, Temperature: %.2f, Humidity: %.2f\n", timestamp, temp, humidity);
+                    }
+                    else
+                    {
+                        Serial.println("Falha ao enviar dados para o Firebase");
+                        Serial.println(fbdo.errorReason());
+                    }
+                    
+                }
+
+                // Liberar o semáforo
+                xSemaphoreGive(xSemaphore);
+            }
         }
-        else
-        {
-          Serial.println("Falha ao enviar dados para o Firebase");
-          Serial.println(fbdo.errorReason());
-        }
-      }
+        vTaskDelay(pdMS_TO_TICKS(50000)); // Enviar dados a cada 5 segundos
     }
-    vTaskDelay(pdMS_TO_TICKS(5000));
-  }
 }
+
+void enviarStatusPorta(void *pvParameters)
+{
+    int lastDoorState = -1; // Estado anterior da porta, inicializado para um valor inválido
+    int doorState = 0;
+    unsigned long eventTime = 0;
+
+    for (;;)
+    {
+        // Verificar se há mudanças na fila de status da porta
+        if (xQueueReceive(queuePortaStatus, &doorState, 0) == pdPASS)
+        {
+            // Detectar mudanças de estado da porta
+            if (doorState != lastDoorState)
+            {
+                lastDoorState = doorState;
+                eventTime = millis();
+
+                // Obter o timestamp atual
+                struct tm timeinfo=rtc.getTimeStruct();
+                // Estruturar os dados em um formato JSON
+                char timestamp[20];
+                strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", &timeinfo);
+
+                FirebaseJson json;
+                json.set("timestamp", timestamp);
+                json.set("door_status", doorState == HIGH ? "open" : "closed");
+
+                // Enviar os dados para o Firebase
+                String path = "/doorStatus/" + String(timestamp);
+
+                if (xSemaphoreTake(xSemaphore, pdMS_TO_TICKS(100)) == pdTRUE)
+                {
+                    if (Firebase.RTDB.setJSON(&fbdo, path.c_str(), &json))
+                    {
+                        Serial.println("Status da porta enviado para o Firebase");
+                        Serial.printf("Timestamp: %s, Door Status: %s\n", timestamp, doorState == HIGH ? "open" : "closed");
+                    }
+                    else
+                    {
+                        Serial.println("Falha ao enviar status da porta para o Firebase");
+                        Serial.println(fbdo.errorReason());
+                    }
+                    xSemaphoreGive(xSemaphore);
+                }
+            }
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(5000)); // Pequeno delay para evitar loop contínuo
+  }
 
 void setup()
 {
@@ -413,63 +494,75 @@ void setup()
     Serial.printf("\n\rFalha em criar a Event Group xEventGroupKey");
   }
 
+  // Criação do semáforo
+  xSemaphore = xSemaphoreCreateBinary();
+  if (xSemaphore != NULL)
+  {
+    xSemaphoreGive(xSemaphore); // Libera o semáforo inicialmente
+  }
+
   // Criação da tarefa InicializaEsp
-  if (xTaskCreatePinnedToCore(InicializaEsp, "InicializaEsp", 5000, NULL, 15, NULL, 1) != pdPASS)
+  if (xTaskCreate(InicializaEsp, "InicializaEsp", 5000, NULL, 15, NULL) != pdPASS)
   {
     Serial.println("Falha ao criar a tarefa InicializaEsp");
   }
   delay(500);
   // Conexão com a internet
-  if (xTaskCreatePinnedToCore(initWiFi, "initWiFi", 5000, NULL, 14, NULL, 1) != pdPASS)
+  if (xTaskCreate(initWiFi, "initWiFi", 5000, NULL, 14, NULL) != pdPASS)
   {
     Serial.println("Falha ao criar a tarefa initWiFi");
   }
   // Criação da tarefa conectarFirebase
-  if (xTaskCreatePinnedToCore(conectarFirebase, "conectarFirebase", 5000, NULL, 14, NULL, 1) != pdPASS)
+  if (xTaskCreate(conectarFirebase, "conectarFirebase", 5000, NULL, 14, NULL) != pdPASS)
   {
     Serial.println("Falha ao criar a tarefa conectarFirebase");
   }
   delay(2000);
   //Tarefa monitoraWiFi
-  if (xTaskCreatePinnedToCore(monitorWiFi, "monitorWiFi", 5000, NULL, 14, NULL, 1) != pdPASS)
+  if (xTaskCreate(monitorWiFi, "monitorWiFi", 5000, NULL, 14, NULL) != pdPASS)
   {
     Serial.println("Falha ao criar a tarefa monitorWiFi");
   }
   // Criação da tarefa AcionaBuzzer
-  if (xTaskCreatePinnedToCore(AcionaBuzzer, "AcionaBuzzer", 5000, NULL, 1, &taskHandlePorta, 1) != pdPASS)
+  if (xTaskCreate(AcionaBuzzer, "AcionaBuzzer", 5000, NULL, 1, &taskHandlePorta) != pdPASS)
   {
     Serial.println("Falha ao criar a tarefa AcionaBuzzer");
   }
   // Criação da tarefa VerificaPortaAberta
-  if (xTaskCreatePinnedToCore(monitoraPorta, "monitoraPorta", 5000, NULL, 2, NULL, 0) != pdPASS)
+  if (xTaskCreate(monitoraPorta, "monitoraPorta", 5000, NULL, 2, NULL) != pdPASS)
   {
     Serial.println("Falha ao criar a tarefa monitoraPorta");
   }
   // Criação da tarefa monitoraTemperaura
-  if (xTaskCreatePinnedToCore(monitoraTemperaura, "monitoraTemperaura", 5000, NULL, 2, NULL, 0) != pdPASS)
+  if (xTaskCreate(monitoraTemperaura, "monitoraTemperaura", 5000, NULL, 2, NULL) != pdPASS)
   {
     Serial.println("Falha ao criar a tarefa monitoraTemperaura");
   }
   // Criação da tarefa controlaVentilador
-  if (xTaskCreatePinnedToCore(controlaVentilador, "controlaVentilador", 5000, NULL, 1, NULL, 0) != pdPASS)
+  if (xTaskCreate(controlaVentilador, "controlaVentilador", 5000, NULL, 1, NULL) != pdPASS)
   {
     Serial.println("Falha ao criar a tarefa controlaVentilador");
   }
   // Criação da tarefa controlaServo
-  if (xTaskCreatePinnedToCore(controlaServo, "controlaServo", 5000, NULL, 1, NULL, 0) != pdPASS)
+  if (xTaskCreate(controlaServo, "controlaServo", 5000, NULL, 1, NULL) != pdPASS)
   {
     Serial.println("Falha ao criar a tarefa controlaServo");
   }
 
-  if (xTaskCreatePinnedToCore(receberDadosFirebase, "receberDadosFirebase", 5000, NULL, 1, NULL, 0) != pdPASS)
-  {
-    Serial.println("Falha ao criar a tarefa receberDadosFirebase");
-  }
+  // if (xTaskCreate(receberDadosFirebase, "receberDadosFirebase", 5000, NULL, 1, NULL) != pdPASS)
+  // {
+  //   Serial.println("Falha ao criar a tarefa receberDadosFirebase");
+  // }
 
-  if (xTaskCreatePinnedToCore(enviarDadosFirebase, "enviarDadosFirebase", 5000, NULL, 1, NULL, 0) != pdPASS)
+  if (xTaskCreate(enviarDadosFirebase, "enviarDadosFirebase", 5000, NULL, 1, NULL) != pdPASS)
   {
     Serial.println("Falha ao criar a tarefa enviarDadosFirebase");
   }  
+
+  if (xTaskCreate(enviarStatusPorta, "enviarStatusPorta", 8192, NULL, 1, NULL) != pdPASS)
+  {
+    Serial.println("Falha ao criar a tarefa enviarStatusPorta");
+  }
 }
 
 void loop()
