@@ -1,16 +1,18 @@
 import { Component, Inject, PLATFORM_ID, OnInit } from '@angular/core';
 import { HeaderComponent } from '../../components/header/header.component';
 import { FooterComponent } from '../../components/footer/footer.component';
-import { Database, ref, set, onValue } from '@angular/fire/database';
+import { Database, ref, set, onValue, query, orderByKey, limitToLast, startAt, endAt } from '@angular/fire/database';
 import { CommonModule } from '@angular/common';
 import { NgxEchartsDirective, provideEcharts } from 'ngx-echarts';
 import { EChartsOption } from 'echarts';
 import { isPlatformBrowser } from '@angular/common';
 import { inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+
 @Component({
   selector: 'app-diagram',
   standalone: true,
-  imports: [HeaderComponent, FooterComponent, CommonModule, NgxEchartsDirective],
+  imports: [HeaderComponent, FooterComponent, CommonModule, NgxEchartsDirective, FormsModule],
   templateUrl: './diagram.component.html',
   styleUrls: ['./diagram.component.css'],
   providers: [
@@ -18,62 +20,42 @@ import { inject } from '@angular/core';
   ]
 })
 export class DiagramComponent {
-  temp: number = 0;
+  temp: number = 1;
   temp_ambient: number = 0;
   umidade: number = 0;
+  door_status: string = '';
+  startDateTime: string = '';
+  endDateTime: string = '';
   private database: Database = inject(Database);
   isBrowser: boolean;
   Option: EChartsOption = {};
 
   constructor(@Inject(PLATFORM_ID) private platformId: Object) {
     this.loadData();
+    this.loadDataPorta();
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 
   ngOnInit(): void {
-    if (this.isBrowser) {
-      this.Option = {
-        title: {
-          text: 'Temperatura e Umidade Durante a Semana'
-        },
-        tooltip: {
-          trigger: 'axis'
-        },
-        legend: {
-          data: ['Temperatura', 'Umidade']
-        },
-        grid: {
-          left: '3%',
-          right: '4%',
-          bottom: '3%',
-          containLabel: true
-        },
-        xAxis: {
-          type: 'category',
-          boundaryGap: false,
-          data: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab']
-        },
-        yAxis: {
-          type: 'value'
-        },
-        series: [
-          {
-            name: 'Temperatura',
-            type: 'line',
-            stack: 'Total',
-            data: [{value:120}, 132, 101, 134, 90, 230, 210]
-          },
-          {
-            name: 'Umidade',
-            type: 'line',
-            stack: 'Total',
-            data: [220, 182, 191, 234, 290, 330, 310]
-          },
-        ]
-    
-      }
-      
-    }
+   
+      const dbRef = ref(this.database, '/sensorData');
+      const queryRef = query(dbRef, orderByKey());
+      onValue(queryRef, (snapshot) => {
+        const chartData: { temperature: number[], humidity: number[], timestamps: string[] } = {
+          temperature: [],
+          humidity: [],
+          timestamps: []
+        };
+
+        snapshot.forEach((childSnapshot) => {
+          const data = childSnapshot.val();
+          chartData.temperature.push(data.temperature);
+          chartData.humidity.push(data.humidity);
+          chartData.timestamps.push(data.timestamp);
+        });
+
+        this.updateChart(chartData);
+      });
   }
 
   increment(): void {
@@ -87,11 +69,11 @@ export class DiagramComponent {
   }
 
   subir(): void {
-    
+    this.saveServoData('u');
   }
 
   descer(): void {
-    
+    this.saveServoData('d');
   }
 
   saveData(): void {
@@ -101,16 +83,117 @@ export class DiagramComponent {
       .catch(error => console.error('Erro ao salvar dados:', error));
   }
 
+  saveServoData(value: string): void {
+    const dbRef = ref(this.database, '/servo/');
+    set(dbRef, value)
+      .then(() => console.log(`Dados '${value}' salvos com sucesso`))
+      .catch(error => console.error('Erro ao salvar dados:', error));
+  }
+
   loadData(): void {
-    const dbRef = ref(this.database, '/base/temperature');
-    onValue(dbRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data !== null) {
-        this.temp_ambient = data;
-        console.log('Dados carregados com sucesso:', this.temp_ambient);
-      }
-    }, {
-      onlyOnce: true // Para carregar dados apenas uma vez
+    const dbRef = ref(this.database, '/sensorData');
+    const queryRef = query(dbRef, orderByKey(), limitToLast(1));
+    onValue(queryRef, (snapshot) => {
+      snapshot.forEach((childSnapshot) => {
+        const data = childSnapshot.val();
+        if (data !== null) {
+          this.umidade = data.humidity;
+          this.temp_ambient = data.temperature;
+          console.log('Últimos dados carregados com sucesso:', data);
+        }
+      });
     });
+    
+  }
+
+  loadDataPorta(): void {
+    const dbRef = ref(this.database, '/doorStatus');
+    const queryRef = query(dbRef, orderByKey(), limitToLast(1));
+    onValue(queryRef, (snapshot) => {
+      snapshot.forEach((childSnapshot) => {
+        const porta = childSnapshot.val();
+        if (porta !== null) {
+          this.door_status = porta.door_status;
+        }
+      });
+    });
+    
+  }
+  filterData(): void {
+
+    if (this.startDateTime && this.endDateTime) {
+      const dbRef = ref(this.database, '/sensorData');
+      const queryRef = query(dbRef, orderByKey(), startAt(this.startDateTime), endAt(this.endDateTime));
+      onValue(queryRef, (snapshot) => {
+        const chartData: { temperature: number[], humidity: number[], timestamps: string[] } = {
+          temperature: [],
+          humidity: [],
+          timestamps: []
+        };
+
+        snapshot.forEach((childSnapshot) => {
+          const data = childSnapshot.val();
+          chartData.temperature.push(data.temperature);
+          chartData.humidity.push(data.humidity);
+          chartData.timestamps.push(data.timestamp);
+        });
+
+        console.log('Dados filtrados com sucesso:', chartData.temperature);
+        console.log('Dados filtrador com sucesso:', chartData.humidity);
+        console.log('Dados filtrador com sucesso:', chartData.timestamps);
+
+        this.updateChart(chartData);
+      });
+    } else {
+      console.error('Por favor, insira ambas as datas.');
+      console.log('startDate', this.startDateTime);
+      console.log('endDate', this.endDateTime);
+    }
+  }
+
+  updateChart(data: { temperature: number[], humidity: number[], timestamps: string[] }): void {
+    this.Option = {
+      title: {
+        text: 'Temperatura e Umidade Filtradas'
+      },
+      tooltip: {
+        trigger: 'axis'
+      },
+      legend: {
+        data: ['Temperatura', 'Umidade']
+      },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '3%',
+        containLabel: true
+      },
+      xAxis: {
+        type: 'category',
+        boundaryGap: false,
+        data: data.timestamps
+      },
+      yAxis: {
+        type: 'value'
+      },
+      series: [
+        {
+          name: 'Temperatura',
+          type: 'line',
+          stack: 'Total',
+          data: data.temperature
+          
+        },
+        {
+          name: 'Umidade',
+          type: 'line',
+          stack: 'Total',
+          data: data.humidity
+          
+        }
+      ]
+    };
+    console.log('Dados carregados com sucesso:', data.temperature);
+    console.log('Dados carregados com sucesso:', data.humidity);
   }
 }

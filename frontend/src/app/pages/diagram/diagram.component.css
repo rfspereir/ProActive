@@ -21,7 +21,7 @@ h3 {
     p {
         margin: 0;
         color: #0b0b0b;
-        font-size: 36px; /* Define o tamanho da fonte */
+        font-size: 46px; /* Define o tamanho da fonte */
         text-align: center; /* Centraliza o texto */
       }
 }
@@ -44,6 +44,9 @@ h3 {
     border-radius: 15px;
     margin: 10px;
     padding: 80px;
+    .btn{
+        margin-left: 40%;
+    }
 }
 
 button {

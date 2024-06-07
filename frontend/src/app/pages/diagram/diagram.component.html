@@ -3,20 +3,26 @@
 
     <div class="container">
         <div class="box">
-            <h3>Temperatura na Geladeira:</h3>
+            <h3>Programa de temperatura da Geladeira:</h3>
             <div>
                 <button (click)="decrement()">-</button>
-                <span>{{temp}} C</span>
+                <input type="range" min="1" max="5" [(ngModel)]="temp">
                 <button (click)="increment()">+</button>
+                <span>{{temp}} </span>
             </div>
         </div>
         <div class="box">
-            <h3>Umidade na Geladeira::</h3>
+            <h3>Umidade:
+            </h3>
             <p>{{umidade}}</p>
         </div>
         <div class="box">
-            <h3>Temperatura ambiente:</h3>
+            <h3>Temperatura:</h3>
             <p>{{temp_ambient}}</p>
+        </div>
+        <div class="box">
+            <h3>Status Porta:</h3>
+            <p>{{door_status}}</p>
         </div>
     </div>
 
@@ -34,6 +40,20 @@
             <div echarts [options]="Option"></div>
         </div>
     </div>
+
+    <div class = "container">
+        <label for="startDateTime">Data e Hora Inicial:</label>
+        <input type="datetime-local" id="startDateTime" [(ngModel)]="startDateTime">
+        
+        <label for="endDateTime">Data e Hora Final:</label>
+        <input type="datetime-local" id="endDateTime" [(ngModel)]="endDateTime">
+
+        <div class="btn">
+            <button (click)="filterData()">Filtrar Dados</button>
+        </div>
+        
+        
+      </div>
   
 </main>
 <app-footer></app-footer>

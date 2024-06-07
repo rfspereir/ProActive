@@ -1,0 +1,85 @@
+{
+  "hash": "04b88e20",
+  "configHash": "f531faa8",
+  "lockfileHash": "a98417d8",
+  "browserHash": "515240e8",
+  "optimized": {
+    "@angular/common": {
+      "src": "../../../../../node_modules/@angular/common/fesm2022/common.mjs",
+      "file": "@angular_common.js",
+      "fileHash": "24acd7a2",
+      "needsInterop": false
+    },
+    "@angular/core": {
+      "src": "../../../../../node_modules/@angular/core/fesm2022/core.mjs",
+      "file": "@angular_core.js",
+      "fileHash": "6d543cb0",
+      "needsInterop": false
+    },
+    "@angular/fire/app": {
+      "src": "../../../../../node_modules/@angular/fire/fesm2022/angular-fire-app.mjs",
+      "file": "@angular_fire_app.js",
+      "fileHash": "e964db72",
+      "needsInterop": false
+    },
+    "@angular/fire/auth": {
+      "src": "../../../../../node_modules/@angular/fire/fesm2022/angular-fire-auth.mjs",
+      "file": "@angular_fire_auth.js",
+      "fileHash": "9a8fd8df",
+      "needsInterop": false
+    },
+    "@angular/fire/database": {
+      "src": "../../../../../node_modules/@angular/fire/fesm2022/angular-fire-database.mjs",
+      "file": "@angular_fire_database.js",
+      "fileHash": "ba20041d",
+      "needsInterop": false
+    },
+    "@angular/forms": {
+      "src": "../../../../../node_modules/@angular/forms/fesm2022/forms.mjs",
+      "file": "@angular_forms.js",
+      "fileHash": "442f1d65",
+      "needsInterop": false
+    },
+    "@angular/platform-browser": {
+      "src": "../../../../../node_modules/@angular/platform-browser/fesm2022/platform-browser.mjs",
+      "file": "@angular_platform-browser.js",
+      "fileHash": "d8fa1ef7",
+      "needsInterop": false
+    },
+    "@angular/router": {
+      "src": "../../../../../node_modules/@angular/router/fesm2022/router.mjs",
+      "file": "@angular_router.js",
+      "fileHash": "ad6d93eb",
+      "needsInterop": false
+    },
+    "ngx-echarts": {
+      "src": "../../../../../node_modules/ngx-echarts/fesm2022/ngx-echarts.mjs",
+      "file": "ngx-echarts.js",
+      "fileHash": "8ed9954e",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "echarts-Q3YGY6QK": {
+      "file": "echarts-Q3YGY6QK.js"
+    },
+    "chunk-SKMZCB2O": {
+      "file": "chunk-SKMZCB2O.js"
+    },
+    "chunk-B3DPK2OU": {
+      "file": "chunk-B3DPK2OU.js"
+    },
+    "chunk-UVOHUXWM": {
+      "file": "chunk-UVOHUXWM.js"
+    },
+    "chunk-HWBV62B6": {
+      "file": "chunk-HWBV62B6.js"
+    },
+    "chunk-ARH7KURL": {
+      "file": "chunk-ARH7KURL.js"
+    },
+    "chunk-47AXDMZD": {
+      "file": "chunk-47AXDMZD.js"
+    }
+  }
+}
