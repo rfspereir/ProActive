@@ -1,7 +1,7 @@
 import { Component, Inject, PLATFORM_ID, OnInit } from '@angular/core';
 import { HeaderComponent } from '../../components/header/header.component';
 import { FooterComponent } from '../../components/footer/footer.component';
-import { Database, ref, set, onValue, query, orderByKey, limitToLast, startAt, endAt } from '@angular/fire/database';
+import { Database, ref, set, get, onValue, query, orderByKey, limitToLast, startAt, endAt } from '@angular/fire/database';
 import { CommonModule } from '@angular/common';
 import { NgxEchartsDirective, provideEcharts } from 'ngx-echarts';
 import { EChartsOption } from 'echarts';
@@ -20,7 +20,7 @@ import { FormsModule } from '@angular/forms';
   ]
 })
 export class DiagramComponent {
-  temp: number = 1;
+  temp: number = 0;
   temp_ambient: number = 0;
   umidade: number = 0;
   door_status: string = '';
@@ -33,6 +33,7 @@ export class DiagramComponent {
   constructor(@Inject(PLATFORM_ID) private platformId: Object) {
     this.loadData();
     this.loadDataPorta();
+    this.loadTemp();
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 
@@ -89,6 +90,24 @@ export class DiagramComponent {
       .then(() => console.log(`Dados '${value}' salvos com sucesso`))
       .catch(error => console.error('Erro ao salvar dados:', error));
   }
+
+  loadTemp(): void {
+    const dbRef = ref(this.database, 'temperatura');
+    get(dbRef)
+      .then((snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          console.log('Dados consultados com sucesso:', data);
+          this.temp = data;  // Atualiza a variável temp com os dados consultados, se necessário
+        } else {
+          console.log('Nenhum dado disponível');
+        }
+      })
+      .catch(error => {
+        console.error('Erro ao consultar dados:', error);
+      });
+  }
+
 
   loadData(): void {
     const dbRef = ref(this.database, '/sensorData');
@@ -154,7 +173,7 @@ export class DiagramComponent {
   updateChart(data: { temperature: number[], humidity: number[], timestamps: string[] }): void {
     this.Option = {
       title: {
-        text: 'Temperatura e Umidade Filtradas'
+        text: 'Temperatura e Umidade'
       },
       tooltip: {
         trigger: 'axis'
@@ -174,20 +193,21 @@ export class DiagramComponent {
         data: data.timestamps
       },
       yAxis: {
-        type: 'value'
+        type: 'value',
+        min: 0.0,  // Valor mínimo do eixo y
+        max: 100.0,  // Valor máximo do eixo y
+        interval: 10.0  // Intervalo entre os valores no eixo y
       },
       series: [
         {
           name: 'Temperatura',
           type: 'line',
-          stack: 'Total',
           data: data.temperature
           
         },
         {
           name: 'Umidade',
           type: 'line',
-          stack: 'Total',
           data: data.humidity
           
         }
