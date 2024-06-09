@@ -12,8 +12,8 @@
 // Varáveis Wifi
 //#define WIFI_SSID "INTELBRAS"
 //#define WIFI_PASSWORD "EF191624"
-//#define WIFI_SSID "TI-01 0380"
-//#define WIFI_PASSWORD "b#0642R2"
+// #define WIFI_SSID "TI-01 0380"
+// #define WIFI_PASSWORD "b#0642R2"
 #define WIFI_SSID "504"
 #define WIFI_PASSWORD "LS457190"
 
@@ -33,6 +33,8 @@ unsigned long previousMillis = 0;
 // Firebase RTDB
 #define API_KEY "AIzaSyDuCIrTT_CQjwBTzwdqT8exzWlqmqrs2ao"                   // Firebase project API Key
 #define DATABASE_URL "https://proactive-ae334-default-rtdb.firebaseio.com/" // RTDB URLefine the RTDB URL */
+#define USER_EMAIL "proactive@proactive.com"                               // Firebase login email
+#define USER_PASSWORD "Proactive@2024"                                     // Firebase login password
 
 // Define Firebase Data object
 FirebaseData fbdo;
@@ -41,6 +43,7 @@ FirebaseConfig config;
 unsigned long sendDataPrevMillis = 0;
 int count = 0;
 bool signupOK = false;
+String userUID = "";
 
 // Variáveis controle porta
 const int DOOR_SENSOR_PIN = 32;
@@ -184,28 +187,28 @@ void conectarFirebase(void *pvParameters)
   const EventBits_t xBitsToWaitFor = (EV_WIFI);
   EventBits_t xEventGroupValue;
   config.api_key = API_KEY;
+  auth.user.email = USER_EMAIL;
+  auth.user.password = USER_PASSWORD;
   config.database_url = DATABASE_URL;
+  
   for (;;)
   {
     xEventGroupValue = xEventGroupWaitBits(xEventGroupKey, xBitsToWaitFor, pdFALSE, pdTRUE, 0);
     if (xEventGroupValue & EV_WIFI)
     {
-      if (Firebase.signUp(&config, &auth, "", ""))
-      {
-        Serial.println("Conectando ao Firebase...");
-        signupOK = true;
-        config.token_status_callback = tokenStatusCallback; // Assign the callback function for the long running token generation task
-        Firebase.begin(&config, &auth);
-        Firebase.reconnectWiFi(true);
-        Serial.println("Conectado ao Firebase");
-        Serial.println("Ready!");
-        xEventGroupSetBits(xEventGroupKey, EV_FIRE); // Configura o BIT (EV_2SEG) em 1
-        vTaskDelete(NULL);
-      }
-      else
-      {
-        Serial.printf("%s\n", config.signer.signupError.message.c_str());
-      }
+      Serial.println("Conectando ao Firebase...");
+      signupOK = true;
+      config.token_status_callback = tokenStatusCallback; // Assign the callback function for the long running token generation task
+      fbdo.setBSSLBufferSize(4096 /* Rx buffer size in bytes from 512 - 16384 */, 1024 /* Tx buffer size in bytes from 512 - 16384 */);
+      fbdo.setResponseSize(4096);
+      Firebase.begin(&config, &auth);
+      Firebase.reconnectWiFi(true);
+      Serial.println("Conectado ao Firebase");
+      Serial.println("Ready!");
+      userUID = auth.token.uid.c_str();
+      
+      xEventGroupSetBits(xEventGroupKey, EV_FIRE); // Configura o BIT (EV_2SEG) em 1
+      vTaskDelete(NULL);
     }
   }
 }
@@ -336,7 +339,7 @@ void controlaVentilador(void *pvParameters)
     else {
       float valor = map(temp, 20, 30, 1024, 3072);
       ledcWrite(0, valor);
-      printf("Temperatura: %.2f, Valor: %.2f\n", temp, valor);
+      //printf("Temperatura: %.2f, Valor: %.2f\n", temp, valor);
     }
     }
      }
@@ -414,7 +417,7 @@ void enviarDadosFirebase(void *pvParameters)
                     json.set("humidity", humidity);
 
                     // Enviar os dados para o Firebase
-                    String path = "/sensorData/" + String(timestamp);
+                    String path = "/users/" + userUID + "/sensorData/" + String(timestamp);
 
                     if (Firebase.RTDB.setJSON(&fbdo, path, &json))
                     {
@@ -462,10 +465,10 @@ void enviarStatusPorta(void *pvParameters)
 
                 FirebaseJson json;
                 json.set("timestamp", timestamp);
-                json.set("door_status", doorState == HIGH ? "open" : "closed");
+                json.set("door_status", doorState == HIGH ? "Aberta" : "Fechada");
 
                 // Enviar os dados para o Firebase
-                String path = "/doorStatus/" + String(timestamp);
+                String path = "/users/" + userUID + "/doorStatus/" + String(timestamp);
 
                 if (xSemaphoreTake(xSemaphore, pdMS_TO_TICKS(100)) == pdTRUE)
                 {
