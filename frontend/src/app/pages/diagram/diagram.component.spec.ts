@@ -1,13 +1,16 @@
 import { Component, Inject, PLATFORM_ID, OnInit } from '@angular/core';
 import { HeaderComponent } from '../../components/header/header.component';
 import { FooterComponent } from '../../components/footer/footer.component';
-import { Database, ref, set, onValue, query, orderByKey, limitToLast, startAt, endAt } from '@angular/fire/database';
+import { Database, ref, set, get, onValue, query, orderByKey, limitToLast, startAt, endAt } from '@angular/fire/database';
 import { CommonModule } from '@angular/common';
 import { NgxEchartsDirective, provideEcharts } from 'ngx-echarts';
 import { EChartsOption } from 'echarts';
 import { isPlatformBrowser } from '@angular/common';
 import { inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Auth } from '@angular/fire/auth';
+import { AuthService } from '../../services/auth.service';
+
 
 @Component({
   selector: 'app-diagram',
@@ -20,7 +23,7 @@ import { FormsModule } from '@angular/forms';
   ]
 })
 export class DiagramComponent {
-  temp: number = 1;
+  temp: number = 0;
   temp_ambient: number = 0;
   umidade: number = 0;
   door_status: string = '';
@@ -29,16 +32,20 @@ export class DiagramComponent {
   private database: Database = inject(Database);
   isBrowser: boolean;
   Option: EChartsOption = {};
+  Option2: EChartsOption = {};
+  uid: string = this.authService.getUid();
 
-  constructor(@Inject(PLATFORM_ID) private platformId: Object) {
+
+  constructor(@Inject(PLATFORM_ID) private platformId: Object, private authService: AuthService) {
+    //this.uid = this.authService.getUid();
     this.loadData();
     this.loadDataPorta();
+    this.loadTemp();
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 
   ngOnInit(): void {
-   
-      const dbRef = ref(this.database, '/sensorData');
+      const dbRef = ref(this.database,'/users/' + this.uid + '/sensorData');
       const queryRef = query(dbRef, orderByKey());
       onValue(queryRef, (snapshot) => {
         const chartData: { temperature: number[], humidity: number[], timestamps: string[] } = {
@@ -77,21 +84,39 @@ export class DiagramComponent {
   }
 
   saveData(): void {
-    const dbRef = ref(this.database, 'temperatura');
+    const dbRef = ref(this.database, '/users/'+ this.uid + '/temperatura');
     set(dbRef, this.temp)
       .then(() => console.log('Dados salvos com sucesso:', this.temp))
       .catch(error => console.error('Erro ao salvar dados:', error));
   }
 
   saveServoData(value: string): void {
-    const dbRef = ref(this.database, '/servo/');
+    const dbRef = ref(this.database, '/users/'+ this.uid + '/servo/');
     set(dbRef, value)
       .then(() => console.log(`Dados '${value}' salvos com sucesso`))
       .catch(error => console.error('Erro ao salvar dados:', error));
   }
 
+  loadTemp(): void {
+    const dbRef = ref(this.database, '/users/'+ this.uid + '/temperatura');
+    get(dbRef)
+      .then((snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          console.log('Dados consultados com sucesso:', data);
+          this.temp = data;  // Atualiza a variável temp com os dados consultados, se necessário
+        } else {
+          console.log('Nenhum dado disponível');
+        }
+      })
+      .catch(error => {
+        console.error('Erro ao consultar dados:', error);
+      });
+  }
+
+
   loadData(): void {
-    const dbRef = ref(this.database, '/sensorData');
+    const dbRef = ref(this.database, '/users/' + this.uid + '/sensorData');
     const queryRef = query(dbRef, orderByKey(), limitToLast(1));
     onValue(queryRef, (snapshot) => {
       snapshot.forEach((childSnapshot) => {
@@ -107,7 +132,7 @@ export class DiagramComponent {
   }
 
   loadDataPorta(): void {
-    const dbRef = ref(this.database, '/doorStatus');
+    const dbRef = ref(this.database, '/users/' + this.uid + '/doorStatus');
     const queryRef = query(dbRef, orderByKey(), limitToLast(1));
     onValue(queryRef, (snapshot) => {
       snapshot.forEach((childSnapshot) => {
@@ -122,7 +147,7 @@ export class DiagramComponent {
   filterData(): void {
 
     if (this.startDateTime && this.endDateTime) {
-      const dbRef = ref(this.database, '/sensorData');
+      const dbRef = ref(this.database, '/users/'+ this.uid + '/sensorData');
       const queryRef = query(dbRef, orderByKey(), startAt(this.startDateTime), endAt(this.endDateTime));
       onValue(queryRef, (snapshot) => {
         const chartData: { temperature: number[], humidity: number[], timestamps: string[] } = {
@@ -154,7 +179,7 @@ export class DiagramComponent {
   updateChart(data: { temperature: number[], humidity: number[], timestamps: string[] }): void {
     this.Option = {
       title: {
-        text: 'Temperatura e Umidade Filtradas'
+        text: 'Temperatura e Umidade'
       },
       tooltip: {
         trigger: 'axis'
@@ -174,20 +199,21 @@ export class DiagramComponent {
         data: data.timestamps
       },
       yAxis: {
-        type: 'value'
+        type: 'value',
+        min: 0.0,  // Valor mínimo do eixo y
+        max: 100.0,  // Valor máximo do eixo y
+        interval: 10.0  // Intervalo entre os valores no eixo y
       },
       series: [
         {
           name: 'Temperatura',
           type: 'line',
-          stack: 'Total',
           data: data.temperature
           
         },
         {
           name: 'Umidade',
           type: 'line',
-          stack: 'Total',
           data: data.humidity
           
         }
@@ -195,5 +221,41 @@ export class DiagramComponent {
     };
     console.log('Dados carregados com sucesso:', data.temperature);
     console.log('Dados carregados com sucesso:', data.humidity);
+  }
+  updateChart2(porta: { door_status: string[], timestamps: string[] }): void {
+    this.Option2 = {
+      title: {
+        text: 'Abertura da Porta'
+      },
+      tooltip: {
+        trigger: 'axis'
+      },
+      legend: {
+        data: ['Status Porta']
+      },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '3%',
+        containLabel: true
+      },
+      xAxis: {
+        type: 'category',
+        boundaryGap: false,
+        data: porta.timestamps
+      },
+      yAxis: {
+        type: 'category',
+        data: ['Fechada', 'Aberta']
+      },
+      series: [
+        {
+          name: 'Status Porta',
+          type: 'line',
+          data: porta.door_status
+          
+        },
+      ]
+    };
   }
 }

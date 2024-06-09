@@ -1,12 +1,27 @@
 <main class="fadein">
-
-    <h1>Geladeira Inteligente ProActive</h1>
+  <h1>Geladeira Inteligente ProActive</h1>
   
-    <form>
-      <h3>Código:</h3>
-      <input type="text" name="codigo"/>
-      <input type="submit" name="acao" value="Enviar" (click)="open()"/>
+  <div *ngIf="!user">
+    <form (ngSubmit)="login()">
+      <label for="login-email">Email:</label>
+      <input type="email" id="login-email" [(ngModel)]="email" name="login-email" required>
+      
+      <label for="login-password">Password:</label>
+      <input type="password" id="login-password" [(ngModel)]="password" name="login-password" required>
+      
+      <div class="buttons">
+        <input type="submit" value="Login">
+      </div>
     </form>
+    <p *ngIf="loginError" class="error">{{ loginError }}</p>
+  </div>
   
+  <div *ngIf="user" class="welcome-message">
+    <p>Bem vindo, {{ user.email }}</p>
+    <div class="buttons">
+      <button (click)="logout()">Logout</button>
+      <button (click)="navigateToDiagram()">Ir para página de controle →</button>
+    </div>
+  </div>
 </main>
 <app-footer></app-footer>

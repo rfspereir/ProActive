@@ -41,6 +41,12 @@
         </div>
     </div>
 
+    <div class="container">
+        <div class="grafico" *ngIf="isBrowser">
+            <div echarts [options]="Option2"></div>
+        </div>
+    </div>
+
     <div class = "container">
         <label for="startDateTime">Data e Hora Inicial:</label>
         <input type="datetime-local" id="startDateTime" [(ngModel)]="startDateTime">

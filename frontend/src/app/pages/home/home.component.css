@@ -1,52 +1,54 @@
-h1 {
-    font-size: 3.25rem;
-    font-weight: 500;
-    letter-spacing: -0.125rem;
-    font-family: "Inter Tight";
-    margin-top: 8rem;
-    text-align: center;
+main {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
 }
 
-h3 {
-    letter-spacing: 0.125rem;
-    font-family: "Inter Tight";
-}
-
-form{
+form {
     max-width: 400px;
     width: 60%;
     padding: 20px;
-    position: absolute;
-    left: 50%;
-    right: 50%;
-    transform: translate(-50%, -50%);
-    margin-top: 11rem;
     text-align: center;
     background-color: antiquewhite;
     border-radius: 15px;
-    
-    input[type=text] {
-        width: 90%;
-        height: 45px;
-        border: 1px solid white;
-        padding-left: 10px;
-        margin: 10px 0;
-    }
-    input[type=submit] {
-        width: 50%;
-        height: 30px;
-        margin-top: 2rem;
-        cursor: pointer;
-        background-color: burlywood;
-        border: 0;
-        border-radius: 20px;
-        letter-spacing: 0.125rem;
-        font-family: "Inter Tight";
-        font-weight: 600;
-    }
-    input[type=submit]:hover {
-        background-color: #A58355;
-    }
+    position: relative;
+}
+
+input[type=email],
+input[type=password],
+input[type=text] {
+    width: 90%;
+    height: 45px;
+    border: 1px solid white;
+    padding-left: 10px;
+    margin: 10px 0;
+}
+
+button,
+input[type=submit] {
+    width: 50%;
+    height: 30px;
+    margin-top: 2rem;
+    cursor: pointer;
+    background-color: burlywood;
+    border: 0;
+    border-radius: 20px;
+    letter-spacing: 0.125rem;
+    font-family: "Inter Tight";
+    font-weight: 600;
+}
+
+button:hover,
+input[type=submit]:hover {
+    background-color: #A58355;
+}
+
+.buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
 }
 
 .fadein {
@@ -56,11 +58,27 @@ form{
   
 @keyframes fadeIn {
     from {
-      opacity: 0;
-      transform: translateY(20px);
+        opacity: 0;
+        transform: translateY(20px);
     }
     to {
-      opacity: 1;
-      transform: translateY(0);
+        opacity: 1;
+        transform: translateY(0);
     }
+}
+
+.welcome-message {
+    text-align: center;
+    margin-top: 2rem;
+    font-family: "Inter Tight";
+}
+
+.welcome-message button {
+    display: block;
+    margin: 1rem auto;
+}
+
+.error {
+    color: red;
+    margin-top: 1rem;
 }
