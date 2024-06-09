@@ -6,7 +6,15 @@ main {
     min-height: 100vh;
 }
 
-form {
+h1 {
+    font-size: 3.25rem;
+    font-weight: 500;
+    letter-spacing: -0.125rem;
+    font-family: "Inter Tight";
+    text-align: center;
+}
+
+form, p{
     max-width: 400px;
     width: 60%;
     padding: 20px;
@@ -14,6 +22,7 @@ form {
     background-color: antiquewhite;
     border-radius: 15px;
     position: relative;
+    left: 15%;
 }
 
 input[type=email],
@@ -51,22 +60,6 @@ input[type=submit]:hover {
     gap: 10px;
 }
 
-.fadein {
-    opacity: 0;
-    animation: fadeIn 2s ease-in forwards;
-}
-  
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
 .welcome-message {
     text-align: center;
     margin-top: 2rem;
@@ -81,4 +74,24 @@ input[type=submit]:hover {
 .error {
     color: red;
     margin-top: 1rem;
+}
+
+.btn {
+    background-color: #A58355;
+}
+
+.fadein {
+    opacity: 0;
+    animation: fadeIn 2s ease-in forwards;
+}
+  
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }

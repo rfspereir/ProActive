@@ -2,7 +2,7 @@
 <main class="fadein">
 
     <div class="container">
-        <div class="box">
+        <div class="box-control">
             <h3>Programa de temperatura da Geladeira:</h3>
             <div>
                 <button (click)="decrement()">-</button>
@@ -11,23 +11,29 @@
                 <span>{{temp}} </span>
             </div>
         </div>
-        <div class="box">
+    </div>
+
+    <div class="container">
+        <div class="box-temp-umid">
+            <h3>Temperatura:</h3>
+            <p>{{temp_ambient}}</p>
+        </div>
+        <div class="box-temp-umid">
             <h3>Umidade:
             </h3>
             <p>{{umidade}}</p>
         </div>
-        <div class="box">
-            <h3>Temperatura:</h3>
-            <p>{{temp_ambient}}</p>
-        </div>
-        <div class="box">
+    </div>
+
+    <div class="container">
+        <div class="box-porta">
             <h3>Status Porta:</h3>
             <p>{{door_status}}</p>
         </div>
     </div>
 
     <div class="container">
-        <div class="camera">
+        <div class="box-graf-camera">
             <div class="btn">
                 <button (click)="subir()">Subir Câmera</button>
                 <button (click)="descer()">Abaixar Câmera</button>
@@ -36,30 +42,33 @@
     </div>
 
     <div class="container">
-        <div class="grafico" *ngIf="isBrowser">
+        <div class="box-filtro"  style="background-color: #A58355;" *ngIf="isBrowser">
+            <div class="filtro">
+                <h3>Filtro para os gráficos:</h3>
+                <div>
+                    <label for="startDateTime">Data e Hora Início:</label>
+                    <input type="datetime-local" id="startDateTime" [(ngModel)]="startDateTime">
+                </div>
+                <div style="margin-top: 15px;">
+                    <label for="endDateTime">Data e Hora Final: </label>
+                    <input type="datetime-local" id="endDateTime" [(ngModel)]="endDateTime">
+                </div>
+                <button style="margin-top: 15px; background-color: antiquewhite;" (click)="filterData()">Filtrar Dados</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="box-graf-camera" *ngIf="isBrowser">
             <div echarts [options]="Option"></div>
         </div>
     </div>
 
     <div class="container">
-        <div class="grafico" *ngIf="isBrowser">
+        <div class="box-graf-camera" *ngIf="isBrowser">
             <div echarts [options]="Option2"></div>
         </div>
     </div>
-
-    <div class = "container">
-        <label for="startDateTime">Data e Hora Inicial:</label>
-        <input type="datetime-local" id="startDateTime" [(ngModel)]="startDateTime">
-        
-        <label for="endDateTime">Data e Hora Final:</label>
-        <input type="datetime-local" id="endDateTime" [(ngModel)]="endDateTime">
-
-        <div class="btn">
-            <button (click)="filterData()">Filtrar Dados</button>
-        </div>
-        
-        
-      </div>
   
 </main>
 <app-footer></app-footer>

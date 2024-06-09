@@ -1,7 +1,9 @@
 <main class="fadein">
-  <h1>Geladeira Inteligente ProActive</h1>
+
+  <h1>Geladeira Inteligente</h1>
+  <h1>ProActive</h1>
   
-  <div *ngIf="!user">
+  <div class="form" *ngIf="!user">
     <form (ngSubmit)="login()">
       <label for="login-email">Email:</label>
       <input type="email" id="login-email" [(ngModel)]="email" name="login-email" required>
@@ -19,8 +21,8 @@
   <div *ngIf="user" class="welcome-message">
     <p>Bem vindo, {{ user.email }}</p>
     <div class="buttons">
-      <button (click)="logout()">Logout</button>
-      <button (click)="navigateToDiagram()">Ir para página de controle →</button>
+      <button class="btn" (click)="logout()">Logout</button>
+      <button class="btn" (click)="navigateToDiagram()">Voltar ao diagrama →</button>
     </div>
   </div>
 </main>

@@ -7,45 +7,21 @@ h3 {
 .container {
     display: flex;
 }
-  
-.box {
+
+.box-control, .box-graf-camera, .box-filtro, .box-temp-umid, .box-porta {
     flex: 1;
     background-color: antiquewhite;
     border-radius: 15px;
     margin: 10px;
     padding: 80px;
-    margin-top: 10%;
     div{
         text-align: center;
     }
     p {
         margin: 0;
         color: #0b0b0b;
-        font-size: 46px; /* Define o tamanho da fonte */
-        text-align: center; /* Centraliza o texto */
-      }
-}
-
-.camera {
-    flex: 1;
-    background-color: antiquewhite;
-    border-radius: 15px;
-    margin: 10px;
-    padding: 80px;
-
-    .btn{
-        margin-left: 40%;
-    }
-}
-
-.grafico {
-    flex: 1;
-    background-color: antiquewhite;
-    border-radius: 15px;
-    margin: 10px;
-    padding: 80px;
-    .btn{
-        margin-left: 40%;
+        font-size: 46px;
+        text-align: center; 
     }
 }
 
@@ -61,10 +37,18 @@ button {
     font-weight: 600;
 }
 
+input[type=datetime-local] {
+    border-radius: 10px;
+    padding: 5px;
+    border: 1px solid antiquewhite;
+    background-color: antiquewhite;
+}
+
 .fadein {
     opacity: 0;
     animation: fadeIn 2s ease-in forwards;
     margin-bottom: 10%;
+    margin-top: 10%;
 }
   
 @keyframes fadeIn {

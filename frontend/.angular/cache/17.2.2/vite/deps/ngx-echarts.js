@@ -21,7 +21,7 @@ import {
   ɵɵdefineInjector,
   ɵɵdefineNgModule,
   ɵɵdirectiveInject
-} from "./chunk-ARH7KURL.js";
+} from "./chunk-LEUASE5X.js";
 import {
   __async,
   __spreadProps,
@@ -517,7 +517,7 @@ var provideEcharts = (config = {}) => {
   return {
     provide: NGX_ECHARTS_CONFIG,
     useFactory: () => __spreadProps(__spreadValues({}, config), {
-      echarts: () => import("./echarts-Q3YGY6QK.js")
+      echarts: () => import("./echarts-L4D2UQVK.js")
     })
   };
 };

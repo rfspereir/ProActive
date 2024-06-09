@@ -206,7 +206,7 @@ export class DiagramComponent {
   updateChart(data: { temperature: number[], humidity: number[], timestamps: string[] }): void {
     this.Option = {
       title: {
-        text: 'Temperatura e Umidade'
+        text: 'Temp e Umidade'
       },
       tooltip: {
         trigger: 'axis'
