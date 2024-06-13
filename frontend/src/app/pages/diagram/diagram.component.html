@@ -33,31 +33,33 @@
     </div>
 
     <div class="container">
-        <div class="box-graf-camera">
+        <div class="box-camera">
           <div class="btn">
-            <button (click)="subir()">Subir Câmera</button>
-            <button (click)="descer()">Abaixar Câmera</button>
-            <button (click)="loadLatestImage()">Última Imagem</button>
-            <button (click)="loadCameraData()">Todas Imagens</button>
-            <button (click)="prevImage()" [disabled]="currentImageIndex === 0">Imagem Anterior</button>
-            <button (click)="nextImage()" [disabled]="currentImageIndex === cameraData.length - 1">Próxima Imagem</button>
-          </div>
+            <button (click)="subir()"><i class="fas fa-arrow-up"></i></button>
+            <button (click)="descer()"><i class="fas fa-arrow-down"></i></button>
+            <button (click)="loadLatestImage()"><i class="fas fa-image"></i></button>
+            <button (click)="loadCameraData()"><i class="fas fa-images"></i></button>
+            <button (click)="prevImage()" [disabled]="currentImageIndex === 0"><i class="fas fa-arrow-left"></i></button>
+            <button (click)="nextImage()" [disabled]="currentImageIndex === cameraData.length - 1"><i class="fas fa-arrow-right"></i></button>
+        </div>
           
           <div *ngIf="cameraData.length > 0" class="image-container">
-            <p class="timestamp">{{ cameraData[currentImageIndex]?.timestamp }}</p>
+            <h3 class="timestamp">{{ cameraData[currentImageIndex]?.timestamp }}</h3>
             <img [src]="'data:image/jpeg;base64,' + cameraData[currentImageIndex]?.base64_image" alt="Camera Image" class="responsive-image">
           </div>
         </div>
       </div>
 
     <div class="container">
-        <div class="box-graf-camera" *ngIf="isBrowser">
+        <div class="box-graf" *ngIf="isBrowser">
+            <h3>Gráfico de Temperatura e Humidade:</h3>
             <div echarts [options]="Option"></div>
         </div>
     </div>
 
     <div class="container">
-        <div class="box-graf-camera" *ngIf="isBrowser">
+        <div class="box-graf" *ngIf="isBrowser">
+            <h3>Gráfico de Abertura da Porta:</h3>
             <div echarts [options]="Option2"></div>
         </div>
     </div>

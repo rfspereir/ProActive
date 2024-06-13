@@ -205,9 +205,6 @@ export class DiagramComponent {
 
   updateChart(data: { temperature: number[], humidity: number[], timestamps: string[] }): void {
     this.Option = {
-      title: {
-        text: 'Temp e Umidade'
-      },
       tooltip: {
         trigger: 'axis'
       },
@@ -250,12 +247,8 @@ export class DiagramComponent {
     console.log('Dados carregados com sucesso:', data.humidity);
   }
   updateChart2(porta: { door_status: string[], timestamps: string[] }): void 
-  {
-    
+  {  
     this.Option2 = {
-      title: {
-        text: 'Abertura da Porta'
-      },
       tooltip: {
         trigger: 'axis'
       },
@@ -280,9 +273,9 @@ export class DiagramComponent {
       series: [
         {
           name: 'Status Porta',
-          type: 'line',
-          step: 'end',
-          smooth: false,
+          type: 'line', 
+          // step: 'end',
+          smooth: true,
           data: porta.door_status
           
         },

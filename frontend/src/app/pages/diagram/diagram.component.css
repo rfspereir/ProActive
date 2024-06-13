@@ -6,23 +6,37 @@ h3 {
 
 .container {
     display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
 }
 
-.box-control, .box-graf-camera, .box-filtro, .box-temp-umid, .box-porta {
+.box-control,
+.box-camera,
+.box-graf,
+.box-filtro,
+.box-temp-umid,
+.box-porta {
     flex: 1;
     background-color: antiquewhite;
     border-radius: 15px;
     margin: 10px;
     padding: 80px;
-    div{
+    box-sizing : border-box;
+
+    div {
         text-align: center;
     }
+
     p {
         margin: 0;
         color: #0b0b0b;
         font-size: 46px;
-        text-align: center; 
+        text-align: center;
     }
+}
+
+.box-temp-umid {
+    flex: 1;
 }
 
 button {
@@ -56,35 +70,58 @@ input[type=datetime-local] {
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 100%;
-  }
-  
-  /* Estilo para imagens responsivas */
-  .responsive-image {
+    width: auto;
+}
+
+.responsive-image {
     width: 100%;
     height: auto;
     max-width: 100%;
-    border-radius: 8px;
-    /* Ajustes adicionais para imagens dinâmicas */
-    object-fit: cover; /* Ajusta a imagem para cobrir o contêiner sem distorção */
-    max-height: 80vh; /* Limita a altura máxima da imagem a 80% da altura da viewport */
-  }
+    border-radius: 4px;
+    object-fit: cover;
+    max-height: 90vh;
+}
 
-  /* Estilo para o texto de data/timestamp */
- .timestamp {
-    font-size: 12px; /* Ajuste o tamanho do texto conforme necessário */
-    color: #555; /* Cor do texto */
-    margin-bottom: 10px; /* Espaçamento inferior */
-  }
+/* Estilo para o texto de data/timestamp */
+.timestamp {
+    font-size: 12px;
+    color: #555;
+    margin-bottom: 10px;
+}
 
+.btn {
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 0px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.btn button {
+    background-color: burlywood;
+    border: 0px;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn button i {
+    margin: 0;
+} 
+
+.btn button:disabled {
+    background-color: lightgray;
+    cursor: not-allowed;
+}
 
 @keyframes fadeIn {
     from {
-      opacity: 0;
-      transform: translateY(20px);
+        opacity: 0;
+        transform: translateY(20px);
     }
+
     to {
-      opacity: 1;
-      transform: translateY(0);
+        opacity: 1;
+        transform: translateY(0);
     }
 }
