@@ -34,29 +34,21 @@
 
     <div class="container">
         <div class="box-graf-camera">
-            <div class="btn">
-                <button (click)="subir()">Subir Câmera</button>
-                <button (click)="descer()">Abaixar Câmera</button>
-            </div>
+          <div class="btn">
+            <button (click)="subir()">Subir Câmera</button>
+            <button (click)="descer()">Abaixar Câmera</button>
+            <button (click)="loadLatestImage()">Última Imagem</button>
+            <button (click)="loadCameraData()">Todas Imagens</button>
+            <button (click)="prevImage()" [disabled]="currentImageIndex === 0">Imagem Anterior</button>
+            <button (click)="nextImage()" [disabled]="currentImageIndex === cameraData.length - 1">Próxima Imagem</button>
+          </div>
+          
+          <div *ngIf="cameraData.length > 0" class="image-container">
+            <p class="timestamp">{{ cameraData[currentImageIndex]?.timestamp }}</p>
+            <img [src]="'data:image/jpeg;base64,' + cameraData[currentImageIndex]?.base64_image" alt="Camera Image" class="responsive-image">
+          </div>
         </div>
-    </div>
-
-    <div class="container">
-        <div class="box-filtro"  style="background-color: #A58355;" *ngIf="isBrowser">
-            <div class="filtro">
-                <h3>Filtro para os gráficos:</h3>
-                <div>
-                    <label for="startDateTime">Data e Hora Início:</label>
-                    <input type="datetime-local" id="startDateTime" [(ngModel)]="startDateTime">
-                </div>
-                <div style="margin-top: 15px;">
-                    <label for="endDateTime">Data e Hora Final: </label>
-                    <input type="datetime-local" id="endDateTime" [(ngModel)]="endDateTime">
-                </div>
-                <button style="margin-top: 15px; background-color: antiquewhite;" (click)="filterData()">Filtrar Dados</button>
-            </div>
-        </div>
-    </div>
+      </div>
 
     <div class="container">
         <div class="box-graf-camera" *ngIf="isBrowser">

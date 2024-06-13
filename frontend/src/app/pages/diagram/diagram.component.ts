@@ -8,7 +8,6 @@ import { EChartsOption } from 'echarts';
 import { isPlatformBrowser } from '@angular/common';
 import { inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Auth } from '@angular/fire/auth';
 import { AuthService } from '../../services/auth.service';
 
 
@@ -34,6 +33,8 @@ export class DiagramComponent {
   Option: EChartsOption = {};
   Option2: EChartsOption = {};
   uid: string = this.authService.getUid();
+  cameraData: any[] = [];
+  currentImageIndex: number = 0;
 
 
   constructor(@Inject(PLATFORM_ID) private platformId: Object, private authService: AuthService) {
@@ -43,13 +44,12 @@ export class DiagramComponent {
     this.isBrowser = isPlatformBrowser(this.platformId);
     this.updateData();
     this.updatePorta();
+    // this.loadCameraData();
   }
 
-  ngOnInit(): void {
+  // ngOnInit(): void {
 
-    this.updateData();
-    this.updatePorta();
-  }
+  // }
 
   increment(): void {
     this.temp++;
@@ -70,21 +70,21 @@ export class DiagramComponent {
   }
 
   saveData(): void {
-    const dbRef = ref(this.database, '/users/'+ this.uid + '/temperatura');
+    const dbRef = ref(this.database, '/users/'+ this.uid + '/siteData/temperatura');
     set(dbRef, this.temp)
       .then(() => console.log('Dados salvos com sucesso:', this.temp))
       .catch(error => console.error('Erro ao salvar dados:', error));
   }
 
   saveServoData(value: string): void {
-    const dbRef = ref(this.database, '/users/'+ this.uid + '/servo/');
+    const dbRef = ref(this.database, '/users/'+ this.uid + '/siteData/servo');
     set(dbRef, value)
       .then(() => console.log(`Dados '${value}' salvos com sucesso`))
       .catch(error => console.error('Erro ao salvar dados:', error));
   }
 
   loadTemp(): void {
-    const dbRef = ref(this.database, '/users/'+ this.uid + '/temperatura');
+    const dbRef = ref(this.database, '/users/'+ this.uid + '/siteData/temperatura');
     get(dbRef)
       .then((snapshot) => {
         if (snapshot.exists()) {
@@ -96,7 +96,7 @@ export class DiagramComponent {
         }
       })
       .catch(error => {
-        console.error('Erro ao consultar dados:', error);
+        //console.error('Erro ao consultar dados:', error);
       });
   }
 
@@ -249,7 +249,8 @@ export class DiagramComponent {
     console.log('Dados carregados com sucesso:', data.temperature);
     console.log('Dados carregados com sucesso:', data.humidity);
   }
-  updateChart2(porta: { door_status: string[], timestamps: string[] }): void {
+  updateChart2(porta: { door_status: string[], timestamps: string[] }): void 
+  {
     
     this.Option2 = {
       title: {
@@ -287,5 +288,44 @@ export class DiagramComponent {
         },
       ]
     };
+  }
+
+  loadCameraData(): void {
+    const dbRef = ref(this.database, '/users/'+ this.uid +  '/camera/cameraData');
+    onValue(dbRef, (snapshot) => {
+      this.cameraData = [];
+      snapshot.forEach((childSnapshot) => {
+        const data = childSnapshot.val();
+        if (data !== null) {
+          this.cameraData.push(data);
+        }
+      });
+    });
+  }
+
+  loadLatestImage(): void {
+    const dbRef = ref(this.database, '/users/'+ this.uid + '/camera/cameraData');
+    const queryRef = query(dbRef, orderByKey(), limitToLast(1));
+    onValue(queryRef, (snapshot) => {
+      snapshot.forEach((childSnapshot) => {
+        const data = childSnapshot.val();
+        if (data) {
+          this.cameraData = [data];
+          this.currentImageIndex = 0;
+        }
+      });
+    });
+  }
+
+  prevImage(): void {
+    if (this.currentImageIndex > 0) {
+      this.currentImageIndex--;
+    }
+  }
+
+  nextImage(): void {
+    if (this.currentImageIndex < this.cameraData.length - 1) {
+      this.currentImageIndex++;
+    }
   }
 }

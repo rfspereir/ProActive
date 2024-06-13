@@ -1,22 +1,17 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
-import { FormsModule } from '@angular/forms';  // Importe FormsModule
 import { AppComponent } from './app.component';
-import { DiagramComponent } from './pages/diagram/diagram.component'; // Certifique-se de que o caminho está correto
-import { CommonModule } from '@angular/common';
-import { RouterOutlet } from '@angular/router';
+import { RouterModule } from '@angular/router';
+
+import { routes } from './app.routes';
 
 @NgModule({
   declarations: [
-    AppComponent,
-    DiagramComponent
-    
+    AppComponent
   ],
   imports: [
-    CommonModule, 
-    RouterOutlet,
     BrowserModule,
-    FormsModule  // Adicione FormsModule ao array imports
+    RouterModule.forRoot(routes) // Importe o AppConfigModule aqui
   ],
   providers: [],
   bootstrap: [AppComponent]

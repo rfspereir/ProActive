@@ -1,14 +1,8 @@
 {
-  "targets": {
-    "proactive-ae334": {
-      "hosting": {
-        "proactive": [
-          "proactive-ae334"
-        ]
-      }
-    }
-  },
   "projects": {
-    "default": "proactive-ae334"
-  }
+    "proactive": "proactive-ae334"
+  },
+  "targets": {},
+  "etags": {},
+  "dataconnectEmulatorConfig": {}
 }
