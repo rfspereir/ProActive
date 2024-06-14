@@ -78,7 +78,7 @@ QueueHandle_t queuePortaStatus = xQueueCreate(1, sizeof(int));
 QueueHandle_t queuePortaTimer = xQueueCreate(1, sizeof(unsigned long));
 QueueHandle_t queueTemperatura = xQueueCreate(1, sizeof(float));
 QueueHandle_t queueUmidade = xQueueCreate(1, sizeof(float));
-QueueHandle_t queueServoControl = xQueueCreate(1, sizeof(String));
+QueueHandle_t queueServoControl = xQueueCreate(1, sizeof(char));
 QueueHandle_t queueControleTemperatura = xQueueCreate(1, sizeof(int));
 QueueHandle_t queueCapturarFoto = xQueueCreate(1, sizeof(int));
 
@@ -109,7 +109,7 @@ void InicializaEsp(void *pvParameters)
     ledcAttachPin(MOTOR_PIN, LEDC_CHANNEL);
 
     servoMotor.attach(SERVO_PIN);
-    servoMotor.write(pos);
+    //servoMotor.write(pos);
 
     vTaskDelay(pdMS_TO_TICKS(500));
     xEventGroupSetBits(xEventGroupKey, EV_START);
@@ -399,22 +399,26 @@ void controlaServo(void *pvParameters)
   for (;;)
   {
     int capturarFoto = 0;
-    int pos = 0;
+    int pos = 90;
     char command = ' ';
+    bool isChanged = false;
 
-    if (xQueueReceive(queueServoControl, &command, portMAX_DELAY) != pdTRUE)
+    if (xQueueReceive(queueServoControl, &command,portMAX_DELAY ) != pdTRUE)
     {
       Serial.println("Falha ao ler a fila de controle do servo");
     }
     else
     {
-      bool isChanged = false; // Flag para verificar mudança de posição
+      Serial.print("Recebi o comando:");
+      Serial.println(command);
+      isChanged = false; // Flag para verificar mudança de posição
       if (command == 'u')
       {
         pos += 30;
         isChanged = true;
       }
-      else if (command == 'd')
+      
+      if (command == 'd')
       {
         pos -= 30;
         isChanged = true;
@@ -422,12 +426,10 @@ void controlaServo(void *pvParameters)
 
       if (isChanged)
       {
-        servoMotor.write(pos);
         Serial.print("Pos=");
         Serial.println(pos);
-        pos = 90;
-        vTaskDelay(pdMS_TO_TICKS(500));
         servoMotor.write(pos);
+        delay(2000);
         Serial.println("Parou");
 
         int capturarFoto = 1;
@@ -594,7 +596,7 @@ void consultaDadosFirebase(void *pvParameters)
             printf("RECEBIDO: Servo: %s, Controle de Temperatura: %d\n", servoControl.c_str(), controleTemp);
 
             xQueueSend(queueControleTemperatura, &controleTemp, 0);
-            xQueueSend(queueServoControl, &servoControl, 0);
+            xQueueSend(queueServoControl, servoControl.c_str(), 0);
           }
           else
           {

@@ -85,6 +85,8 @@ QueueHandle_t queueCapturarFoto = xQueueCreate(1, sizeof(int));
 #define VSYNC_GPIO_NUM 25
 #define HREF_GPIO_NUM 23
 #define PCLK_GPIO_NUM 22
+#define FLASH_PIN 4
+
 
 #define PART_BOUNDARY "123456789000000000000987654321"
 static const char *_STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
@@ -125,6 +127,7 @@ void InicializaEsp(void *pvParameters)
     config.pin_reset = RESET_GPIO_NUM;
     config.xclk_freq_hz = 20000000;
     config.pixel_format = PIXFORMAT_JPEG;
+    pinMode(FLASH_PIN, OUTPUT); // Configura o pino do flash como saída
 
     config.frame_size = FRAMESIZE_UXGA;
     config.jpeg_quality = 40;
@@ -298,6 +301,9 @@ void enviarDadosFirebase(void *pvParameters)
 
           if (capturarFoto == 1)
           {
+            // Liga o flash
+            digitalWrite(FLASH_PIN, HIGH);
+
             // Obter o timestamp atual
             struct tm timeinfo = rtc.getTimeStruct();
 
@@ -308,6 +314,9 @@ void enviarDadosFirebase(void *pvParameters)
               Serial.println("Erro ao capturar a imagem");
               return;
             }
+            vTaskDelay(pdMS_TO_TICKS(500));
+
+             digitalWrite(FLASH_PIN, LOW);
 
             // Converte a imagem para base64
             String base64_image = base64::encode((uint8_t *)fb->buf, fb->len);
